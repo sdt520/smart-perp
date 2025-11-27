@@ -290,3 +290,4 @@ export function WalletTable({ wallets, loading }: WalletTableProps) {
   );
 }
 
+
