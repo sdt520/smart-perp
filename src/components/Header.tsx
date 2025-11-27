@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { fetchLastSync } from '../services/api';
 
 interface Platform {
   id: string;
@@ -14,6 +15,50 @@ const platforms: Platform[] = [
 
 export function Header() {
   const [selectedPlatform, setSelectedPlatform] = useState('hyperliquid');
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
+  const [isStale, setIsStale] = useState(false);
+
+  // Fetch last sync time on mount and every 60 seconds
+  useEffect(() => {
+    const fetchSync = async () => {
+      const data = await fetchLastSync();
+      setLastSyncAt(data.lastSyncAt);
+      
+      // Check if data is stale (more than 24 hours old)
+      if (data.lastSyncAt) {
+        const syncTime = new Date(data.lastSyncAt).getTime();
+        const now = Date.now();
+        const hoursSinceSync = (now - syncTime) / (1000 * 60 * 60);
+        setIsStale(hoursSinceSync > 24);
+      }
+    };
+
+    fetchSync();
+    const interval = setInterval(fetchSync, 60000); // Refresh every minute
+    return () => clearInterval(interval);
+  }, []);
+
+  // Format the last sync time
+  const formatLastSync = () => {
+    if (!lastSyncAt) return '未同步';
+    
+    const syncDate = new Date(lastSyncAt);
+    const now = new Date();
+    const diffMs = now.getTime() - syncDate.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    
+    if (diffMins < 1) return '刚刚';
+    if (diffMins < 60) return `${diffMins} 分钟前`;
+    if (diffHours < 24) return `${diffHours} 小时前`;
+    
+    return syncDate.toLocaleDateString('zh-CN', { 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur-xl bg-[var(--color-bg-primary)]/80 border-b border-[var(--color-border)]">
@@ -80,23 +125,32 @@ export function Header() {
             ))}
           </div>
 
-          {/* Stats */}
-          <div className="flex items-center gap-6">
+          {/* Last Sync Time */}
+          <div className="flex items-center gap-2">
             <div className="text-right">
               <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider">
-                跟踪钱包
+                数据更新
               </p>
-              <p className="text-lg font-semibold font-mono text-[var(--color-accent-blue)]">
-                8
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider">
-                最后更新
-              </p>
-              <p className="text-lg font-semibold font-mono text-[var(--color-text-secondary)]">
-                {new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
-              </p>
+              <div className="flex items-center gap-2">
+                {/* Status indicator */}
+                <div 
+                  className={`w-2 h-2 rounded-full ${
+                    isStale 
+                      ? 'bg-[var(--color-accent-red)]' 
+                      : lastSyncAt 
+                        ? 'bg-[var(--color-accent-green)]' 
+                        : 'bg-yellow-500'
+                  }`}
+                  title={isStale ? 'Worker 可能已停止' : '正常运行'}
+                />
+                <p className={`text-lg font-semibold font-mono ${
+                  isStale 
+                    ? 'text-[var(--color-accent-red)]' 
+                    : 'text-[var(--color-text-secondary)]'
+                }`}>
+                  {formatLastSync()}
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -104,5 +158,3 @@ export function Header() {
     </header>
   );
 }
-
-

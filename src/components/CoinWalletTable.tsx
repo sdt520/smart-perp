@@ -1,21 +1,23 @@
 import { useMemo, useState } from 'react';
-import type { SmartWallet, SortConfig, SortField } from '../types';
+import type { CoinWallet } from '../services/api';
 
-interface WalletTableProps {
-  wallets: SmartWallet[];
+interface CoinWalletTableProps {
+  wallets: CoinWallet[];
+  coin: string;
   loading?: boolean;
   startIndex?: number; // 分页起始索引
 }
 
+type SortField = 'pnl_7d' | 'pnl_30d' | 'win_rate_7d' | 'win_rate_30d' | 'trades_count_7d' | 'trades_count_30d';
+
 const columns: { key: SortField | 'address'; label: string; align: 'left' | 'right' }[] = [
   { key: 'address', label: '钱包地址', align: 'left' },
-  { key: 'pnl1d', label: '1D PnL', align: 'right' },
-  { key: 'pnl7d', label: '7D PnL', align: 'right' },
-  { key: 'pnl30d', label: '30D PnL', align: 'right' },
-  { key: 'winRate7d', label: '7D 胜率', align: 'right' },
-  { key: 'winRate30d', label: '30D 胜率', align: 'right' },
-  { key: 'trades7d', label: '7D 交易', align: 'right' },
-  { key: 'trades30d', label: '30D 交易', align: 'right' },
+  { key: 'pnl_7d', label: '7D PnL', align: 'right' },
+  { key: 'pnl_30d', label: '30D PnL', align: 'right' },
+  { key: 'win_rate_7d', label: '7D 胜率', align: 'right' },
+  { key: 'win_rate_30d', label: '30D 胜率', align: 'right' },
+  { key: 'trades_count_7d', label: '7D 交易', align: 'right' },
+  { key: 'trades_count_30d', label: '30D 交易', align: 'right' },
 ];
 
 function formatPnL(value: number): string {
@@ -64,27 +66,6 @@ function CheckIcon() {
   );
 }
 
-function SortIcon({ direction }: { direction: 'asc' | 'desc' | null }) {
-  if (!direction) {
-    return (
-      <svg className="w-4 h-4 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M7 10l5-5 5 5M7 14l5 5 5-5" />
-      </svg>
-    );
-  }
-  return (
-    <svg
-      className={`w-4 h-4 transition-transform ${direction === 'desc' ? 'rotate-180' : ''}`}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
-      <path d="M7 14l5-5 5 5" />
-    </svg>
-  );
-}
-
 // Copy button component with feedback
 function CopyButton({ address }: { address: string }) {
   const [copied, setCopied] = useState(false);
@@ -115,9 +96,30 @@ function CopyButton({ address }: { address: string }) {
   );
 }
 
-export function WalletTable({ wallets, loading, startIndex = 0 }: WalletTableProps) {
-  const [sortConfig, setSortConfig] = useState<SortConfig>({
-    field: 'pnl30d',
+function SortIcon({ direction }: { direction: 'asc' | 'desc' | null }) {
+  if (!direction) {
+    return (
+      <svg className="w-4 h-4 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M7 10l5-5 5 5M7 14l5 5 5-5" />
+      </svg>
+    );
+  }
+  return (
+    <svg
+      className={`w-4 h-4 transition-transform ${direction === 'desc' ? 'rotate-180' : ''}`}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M7 14l5-5 5 5" />
+    </svg>
+  );
+}
+
+export function CoinWalletTable({ wallets, coin, loading, startIndex = 0 }: CoinWalletTableProps) {
+  const [sortConfig, setSortConfig] = useState<{ field: SortField; direction: 'asc' | 'desc' }>({
+    field: 'pnl_30d',
     direction: 'desc',
   });
 
@@ -126,7 +128,7 @@ export function WalletTable({ wallets, loading, startIndex = 0 }: WalletTablePro
       const aValue = a[sortConfig.field];
       const bValue = b[sortConfig.field];
       const modifier = sortConfig.direction === 'asc' ? 1 : -1;
-      return (aValue - bValue) * modifier;
+      return ((aValue || 0) - (bValue || 0)) * modifier;
     });
   }, [wallets, sortConfig]);
 
@@ -142,17 +144,28 @@ export function WalletTable({ wallets, loading, startIndex = 0 }: WalletTablePro
       <div className="bg-[var(--color-bg-secondary)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
         <div className="p-12 text-center">
           <div className="inline-flex items-center gap-3 text-[var(--color-text-secondary)]">
-            <svg
-              className="w-6 h-6 animate-spin"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
+            <svg className="w-6 h-6 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
               <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
             </svg>
-            <span className="text-lg">正在加载钱包数据...</span>
+            <span className="text-lg">正在加载 {coin} 交易者数据...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (wallets.length === 0) {
+    return (
+      <div className="bg-[var(--color-bg-secondary)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
+        <div className="p-12 text-center">
+          <div className="text-[var(--color-text-muted)]">
+            <svg className="w-12 h-12 mx-auto mb-4 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 8v4M12 16h.01" />
+            </svg>
+            <p className="text-lg">暂无 {coin} 的交易数据</p>
+            <p className="text-sm mt-2">等待 Worker 同步更多数据</p>
           </div>
         </div>
       </div>
@@ -161,6 +174,18 @@ export function WalletTable({ wallets, loading, startIndex = 0 }: WalletTablePro
 
   return (
     <div className="bg-[var(--color-bg-secondary)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
+      {/* Coin Badge */}
+      <div className="px-4 py-3 bg-[var(--color-bg-tertiary)] border-b border-[var(--color-border)]">
+        <div className="flex items-center gap-2">
+          <span className="px-3 py-1 rounded-full bg-[var(--color-accent-blue)]/20 text-[var(--color-accent-blue)] font-mono text-sm font-medium">
+            {coin}
+          </span>
+          <span className="text-sm text-[var(--color-text-muted)]">
+            {wallets.length} 个交易者
+          </span>
+        </div>
+      </div>
+
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -191,7 +216,7 @@ export function WalletTable({ wallets, loading, startIndex = 0 }: WalletTablePro
           <tbody>
             {sortedWallets.map((wallet, index) => (
               <tr
-                key={wallet.address}
+                key={wallet.id}
                 className="table-row-hover border-b border-[var(--color-border)]/50 last:border-b-0"
               >
                 {/* Address */}
@@ -200,55 +225,47 @@ export function WalletTable({ wallets, loading, startIndex = 0 }: WalletTablePro
                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--color-accent-blue)]/20 to-[var(--color-accent-green)]/20 flex items-center justify-center text-sm font-bold text-[var(--color-accent-blue)]">
                       {startIndex + index + 1}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <a
-                        href={`https://app.hyperliquid.xyz/explorer/address/${wallet.address}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-mono text-sm text-[var(--color-text-primary)] hover:text-[var(--color-accent-blue)] transition-colors"
-                        title="在 Hyperliquid 浏览器中查看"
-                      >
-                        {shortenAddress(wallet.address)}
-                      </a>
-                      <CopyButton address={wallet.address} />
-                      {wallet.twitter && (
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
                         <a
-                          href={`https://twitter.com/${wallet.twitter}`}
+                          href={`https://app.hyperliquid.xyz/explorer/address/${wallet.address}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[var(--color-text-muted)] hover:text-[#1DA1F2] transition-colors"
-                          title={`@${wallet.twitter}`}
+                          className="font-mono text-sm text-[var(--color-text-primary)] hover:text-[var(--color-accent-blue)] transition-colors"
+                          title="在 Hyperliquid 浏览器中查看"
                         >
-                          <TwitterIcon />
+                          {shortenAddress(wallet.address)}
                         </a>
+                        <CopyButton address={wallet.address} />
+                        {wallet.twitter_handle && (
+                          <a
+                            href={`https://twitter.com/${wallet.twitter_handle}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[var(--color-text-muted)] hover:text-[#1DA1F2] transition-colors"
+                            title={`@${wallet.twitter_handle}`}
+                          >
+                            <TwitterIcon />
+                          </a>
+                        )}
+                      </div>
+                      {wallet.label && (
+                        <span className="text-xs text-[var(--color-text-muted)]">{wallet.label}</span>
                       )}
                     </div>
                   </div>
-                </td>
-
-                {/* 1D PnL */}
-                <td className="px-4 py-4 text-right">
-                  <span
-                    className={`font-mono text-sm font-medium tabular-nums ${
-                      wallet.pnl1d >= 0
-                        ? 'text-[var(--color-accent-green)]'
-                        : 'text-[var(--color-accent-red)]'
-                    }`}
-                  >
-                    {wallet.pnl1d >= 0 ? '+' : ''}${formatPnL(wallet.pnl1d)}
-                  </span>
                 </td>
 
                 {/* 7D PnL */}
                 <td className="px-4 py-4 text-right">
                   <span
                     className={`font-mono text-sm font-medium tabular-nums ${
-                      wallet.pnl7d >= 0
+                      wallet.pnl_7d >= 0
                         ? 'text-[var(--color-accent-green)]'
                         : 'text-[var(--color-accent-red)]'
                     }`}
                   >
-                    {wallet.pnl7d >= 0 ? '+' : ''}${formatPnL(wallet.pnl7d)}
+                    {wallet.pnl_7d >= 0 ? '+' : ''}${formatPnL(wallet.pnl_7d)}
                   </span>
                 </td>
 
@@ -256,12 +273,12 @@ export function WalletTable({ wallets, loading, startIndex = 0 }: WalletTablePro
                 <td className="px-4 py-4 text-right">
                   <span
                     className={`font-mono text-sm font-medium tabular-nums ${
-                      wallet.pnl30d >= 0
+                      wallet.pnl_30d >= 0
                         ? 'text-[var(--color-accent-green)]'
                         : 'text-[var(--color-accent-red)]'
                     }`}
                   >
-                    {wallet.pnl30d >= 0 ? '+' : ''}${formatPnL(wallet.pnl30d)}
+                    {wallet.pnl_30d >= 0 ? '+' : ''}${formatPnL(wallet.pnl_30d)}
                   </span>
                 </td>
 
@@ -271,25 +288,25 @@ export function WalletTable({ wallets, loading, startIndex = 0 }: WalletTablePro
                     <div className="w-16 h-1.5 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full ${
-                          wallet.winRate7d >= 60
+                          wallet.win_rate_7d >= 60
                             ? 'bg-[var(--color-accent-green)]'
-                            : wallet.winRate7d >= 50
+                            : wallet.win_rate_7d >= 50
                             ? 'bg-[var(--color-accent-blue)]'
                             : 'bg-[var(--color-accent-red)]'
                         }`}
-                        style={{ width: `${Math.min(wallet.winRate7d, 100)}%` }}
+                        style={{ width: `${Math.min(wallet.win_rate_7d || 0, 100)}%` }}
                       />
                     </div>
                     <span
                       className={`font-mono text-sm tabular-nums ${
-                        wallet.winRate7d >= 60
+                        wallet.win_rate_7d >= 60
                           ? 'text-[var(--color-accent-green)]'
-                          : wallet.winRate7d >= 50
+                          : wallet.win_rate_7d >= 50
                           ? 'text-[var(--color-accent-blue)]'
                           : 'text-[var(--color-accent-red)]'
                       }`}
                     >
-                      {wallet.winRate7d.toFixed(1)}%
+                      {(wallet.win_rate_7d || 0).toFixed(1)}%
                     </span>
                   </div>
                 </td>
@@ -300,25 +317,25 @@ export function WalletTable({ wallets, loading, startIndex = 0 }: WalletTablePro
                     <div className="w-16 h-1.5 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full ${
-                          wallet.winRate30d >= 60
+                          wallet.win_rate_30d >= 60
                             ? 'bg-[var(--color-accent-green)]'
-                            : wallet.winRate30d >= 50
+                            : wallet.win_rate_30d >= 50
                             ? 'bg-[var(--color-accent-blue)]'
                             : 'bg-[var(--color-accent-red)]'
                         }`}
-                        style={{ width: `${Math.min(wallet.winRate30d, 100)}%` }}
+                        style={{ width: `${Math.min(wallet.win_rate_30d || 0, 100)}%` }}
                       />
                     </div>
                     <span
                       className={`font-mono text-sm tabular-nums ${
-                        wallet.winRate30d >= 60
+                        wallet.win_rate_30d >= 60
                           ? 'text-[var(--color-accent-green)]'
-                          : wallet.winRate30d >= 50
+                          : wallet.win_rate_30d >= 50
                           ? 'text-[var(--color-accent-blue)]'
                           : 'text-[var(--color-accent-red)]'
                       }`}
                     >
-                      {wallet.winRate30d.toFixed(1)}%
+                      {(wallet.win_rate_30d || 0).toFixed(1)}%
                     </span>
                   </div>
                 </td>
@@ -326,14 +343,14 @@ export function WalletTable({ wallets, loading, startIndex = 0 }: WalletTablePro
                 {/* 7D Trades */}
                 <td className="px-4 py-4 text-right">
                   <span className="font-mono text-sm text-[var(--color-text-secondary)] tabular-nums">
-                    {formatNumber(wallet.trades7d)}
+                    {formatNumber(wallet.trades_count_7d || 0)}
                   </span>
                 </td>
 
                 {/* 30D Trades */}
                 <td className="px-4 py-4 text-right">
                   <span className="font-mono text-sm text-[var(--color-text-secondary)] tabular-nums">
-                    {formatNumber(wallet.trades30d)}
+                    {formatNumber(wallet.trades_count_30d || 0)}
                   </span>
                 </td>
               </tr>
@@ -344,3 +361,4 @@ export function WalletTable({ wallets, loading, startIndex = 0 }: WalletTablePro
     </div>
   );
 }
+
