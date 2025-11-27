@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+:root {
+  --color-bg-primary: #0a0b0d;
+  --color-bg-secondary: #12141a;
+  --color-bg-tertiary: #1a1d25;
+  --color-border: #2a2e3a;
+  --color-accent-green: #00ff88;
+  --color-accent-red: #ff3366;
+  --color-accent-blue: #00d4ff;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #8b8f9a;
+  --color-text-muted: #5a5e6a;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+body {
+  margin: 0;
+  font-family: 'Outfit', system-ui, sans-serif;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  min-height: 100vh;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Animated gradient background */
+.bg-grid-pattern {
+  background-image: 
+    linear-gradient(rgba(42, 46, 58, 0.3) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(42, 46, 58, 0.3) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+/* Glow effects */
+.glow-green {
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.15);
+}
+
+.glow-red {
+  box-shadow: 0 0 20px rgba(255, 51, 102, 0.15);
+}
+
+.glow-blue {
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.15);
+}
+
+/* Table row hover effect */
+.table-row-hover {
+  transition: all 0.2s ease;
+}
+
+.table-row-hover:hover {
+  background: linear-gradient(90deg, rgba(0, 212, 255, 0.05), transparent);
+  transform: translateX(2px);
+}
+
+/* Pulse animation for loading */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Sort indicator animation */
+.sort-indicator {
+  transition: transform 0.2s ease;
+}
+
+/* Number formatting */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
