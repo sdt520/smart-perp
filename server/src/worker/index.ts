@@ -98,6 +98,24 @@ async function runCoinMetricsCalculation(): Promise<void> {
   }
 }
 
+// Job: Take Daily PnL Snapshots
+async function runDailyPnlSnapshots(): Promise<void> {
+  console.log('\n' + '='.repeat(50));
+  console.log('📸 Starting Daily PnL Snapshots Job');
+  console.log('='.repeat(50));
+  
+  const jobId = await createSyncJob('daily_pnl_snapshot', 'hyperliquid');
+  
+  try {
+    await hyperliquid.takeDailyPnlSnapshots();
+    await completeSyncJob(jobId);
+    console.log('✅ Daily PnL snapshots completed successfully\n');
+  } catch (error) {
+    await completeSyncJob(jobId, error as Error);
+    console.error('❌ Daily PnL snapshots failed:', error);
+  }
+}
+
 // Run all jobs once (for testing or manual trigger)
 async function runAllOnce(): Promise<void> {
   console.log(`
@@ -110,16 +128,18 @@ async function runAllOnce(): Promise<void> {
   await runTradesSync();
   await runMetricsCalculation();
   await runCoinMetricsCalculation();
+  await runDailyPnlSnapshots();
 
   console.log('\n✅ All jobs completed. Exiting...');
   process.exit(0);
 }
 
-// Combined job: Sync trades then calculate metrics
-async function runTradesSyncWithMetrics(): Promise<void> {
+// Combined job: Sync trades, calculate metrics, then take snapshots
+async function runTradesSyncWithMetricsAndSnapshots(): Promise<void> {
   await runTradesSync();
   await runMetricsCalculation();
   await runCoinMetricsCalculation();
+  await runDailyPnlSnapshots();
 }
 
 // Start scheduled worker
@@ -132,6 +152,7 @@ function startScheduledWorker(): void {
 ║  Trades Sync:       Every 12 hours                 ║
 ║    → Metrics Calc:  After trades sync              ║
 ║    → Coin Metrics:  After metrics calc             ║
+║    → PnL Snapshots: After coin metrics             ║
 ╚════════════════════════════════════════════════════╝
   `);
 
@@ -141,17 +162,17 @@ function startScheduledWorker(): void {
     runLeaderboardSync();
   });
 
-  // Trades sync + metrics calculation - every 12 hours (at 00:30 and 12:30)
-  // Fetches trade details, then calculates win rates and per-coin metrics
+  // Trades sync + metrics calculation + daily snapshots - every 12 hours (at 00:30 and 12:30)
+  // Fetches trade details, then calculates win rates, per-coin metrics, and takes PnL snapshots
   // Offset by 30 minutes to avoid running simultaneously with leaderboard sync
   cron.schedule(process.env.WORKER_TRADES_CRON || '30 0,12 * * *', () => {
-    runTradesSyncWithMetrics();
+    runTradesSyncWithMetricsAndSnapshots();
   });
 
   // Run initial sync on startup
   console.log('🚀 Running initial sync...\n');
   runLeaderboardSync()
-    .then(() => runTradesSyncWithMetrics())
+    .then(() => runTradesSyncWithMetricsAndSnapshots())
     .then(() => console.log('\n✅ Initial sync complete. Worker is now running on schedule.'));
 }
 

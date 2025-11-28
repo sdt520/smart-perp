@@ -224,3 +224,52 @@ export async function getStats(platformId?: string): Promise<{
   };
 }
 
+export interface PnlHistoryItem {
+  date: string;
+  pnl: number;
+  cumulativePnl: number;
+  tradesCount: number;
+  winRate: number;
+  volume: number;
+}
+
+export async function getWalletPnlHistory(
+  address: string,
+  platformId: string,
+  days = 30
+): Promise<PnlHistoryItem[]> {
+  const query = `
+    SELECT 
+      s.snapshot_date,
+      COALESCE(s.pnl_1d, 0)::float AS pnl_1d,
+      COALESCE(s.cumulative_pnl, 0)::float AS cumulative_pnl,
+      COALESCE(s.trades_count, 0) AS trades_count,
+      COALESCE(s.win_rate, 0)::float AS win_rate,
+      COALESCE(s.volume, 0)::float AS volume
+    FROM daily_pnl_snapshots s
+    JOIN wallets w ON s.wallet_id = w.id
+    WHERE w.address = $1 AND w.platform_id = $2
+    ORDER BY s.snapshot_date DESC
+    LIMIT $3
+  `;
+
+  const result = await db.query<{
+    snapshot_date: Date;
+    pnl_1d: number;
+    cumulative_pnl: number;
+    trades_count: number;
+    win_rate: number;
+    volume: number;
+  }>(query, [address, platformId, days]);
+
+  // Return in chronological order (oldest first)
+  return result.rows.reverse().map(row => ({
+    date: row.snapshot_date.toISOString().split('T')[0],
+    pnl: row.pnl_1d,
+    cumulativePnl: row.cumulative_pnl,
+    tradesCount: row.trades_count,
+    winRate: row.win_rate,
+    volume: row.volume,
+  }));
+}
+

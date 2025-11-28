@@ -25,22 +25,19 @@ export function Pagination({
   // Generate page numbers to show
   const getPageNumbers = () => {
     const pages: (number | 'ellipsis')[] = [];
-    const showPages = 5; // Number of page buttons to show
+    const showPages = 5;
     
     if (totalPages <= showPages + 2) {
-      // Show all pages if total is small
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
-      // Always show first page
       pages.push(1);
       
       if (page > 3) {
         pages.push('ellipsis');
       }
       
-      // Show pages around current page
       const start = Math.max(2, page - 1);
       const end = Math.min(totalPages - 1, page + 1);
       
@@ -52,7 +49,6 @@ export function Pagination({
         pages.push('ellipsis');
       }
       
-      // Always show last page
       if (totalPages > 1) {
         pages.push(totalPages);
       }
@@ -62,11 +58,11 @@ export function Pagination({
   };
 
   return (
-    <div className="flex items-center justify-between flex-wrap gap-4 mt-6 pt-4 border-t border-[var(--color-border)]">
+    <div className="flex items-center justify-between flex-wrap gap-4 mt-6 pt-5 border-t border-[var(--color-border)]">
       {/* Left: Items info */}
       <div className="flex items-center gap-4">
         <span className="text-sm text-[var(--color-text-muted)]">
-          显示 <span className="text-[var(--color-text-primary)] font-medium">{startItem}-{endItem}</span> / {total.toLocaleString()} 个钱包
+          显示 <span className="text-[var(--color-text-secondary)]">{startItem}-{endItem}</span> / {total.toLocaleString()}
         </span>
         
         {/* Page size selector */}
@@ -76,7 +72,7 @@ export function Pagination({
             value={pageSize}
             onChange={(e) => onPageSizeChange(Number(e.target.value))}
             disabled={loading}
-            className="px-3 py-1.5 bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent-blue)] disabled:opacity-50"
+            className="px-2.5 py-1.5 bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-border-hover)] disabled:opacity-50"
           >
             {PAGE_SIZE_OPTIONS.map((size) => (
               <option key={size} value={size}>
@@ -93,9 +89,9 @@ export function Pagination({
         <button
           onClick={() => onPageChange(page - 1)}
           disabled={page === 1 || loading}
-          className="p-2 rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="p-2 rounded-lg text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
-          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
@@ -104,7 +100,7 @@ export function Pagination({
         {getPageNumbers().map((p, i) => (
           p === 'ellipsis' ? (
             <span key={`ellipsis-${i}`} className="px-2 text-[var(--color-text-muted)]">
-              ...
+              ···
             </span>
           ) : (
             <button
@@ -112,10 +108,10 @@ export function Pagination({
               onClick={() => onPageChange(p)}
               disabled={loading}
               className={`
-                min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-colors
+                min-w-[32px] h-8 px-2.5 rounded-lg text-sm transition-colors
                 ${page === p
-                  ? 'bg-[var(--color-accent-blue)] text-white'
-                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]'
+                  ? 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)]'
+                  : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]'
                 }
                 disabled:opacity-50
               `}
@@ -129,9 +125,9 @@ export function Pagination({
         <button
           onClick={() => onPageChange(page + 1)}
           disabled={page === totalPages || loading}
-          className="p-2 rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="p-2 rounded-lg text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
-          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M9 18l6-6-6-6" />
           </svg>
         </button>
@@ -139,4 +135,3 @@ export function Pagination({
     </div>
   );
 }
-

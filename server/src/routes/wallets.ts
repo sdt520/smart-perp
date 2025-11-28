@@ -126,7 +126,57 @@ router.get('/last-sync', async (_req, res) => {
   }
 });
 
-// GET /api/wallets/:id - Get single wallet
+// GET /api/wallets/address/:address - Get wallet by address
+router.get('/address/:address', async (req, res) => {
+  try {
+    const { address } = req.params;
+    const platform = (req.query.platform as string) || 'hyperliquid';
+    
+    const wallet = await walletService.getWalletByAddress(address, platform);
+    if (!wallet) {
+      res.status(404).json({
+        success: false,
+        error: 'Wallet not found',
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: wallet,
+    });
+  } catch (error) {
+    console.error('Error fetching wallet by address:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+    });
+  }
+});
+
+// GET /api/wallets/address/:address/pnl-history - Get PnL history for a wallet
+router.get('/address/:address/pnl-history', async (req, res) => {
+  try {
+    const { address } = req.params;
+    const platform = (req.query.platform as string) || 'hyperliquid';
+    const days = parseInt(req.query.days as string) || 30;
+    
+    const pnlHistory = await walletService.getWalletPnlHistory(address, platform, days);
+
+    res.json({
+      success: true,
+      data: pnlHistory,
+    });
+  } catch (error) {
+    console.error('Error fetching PnL history:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+    });
+  }
+});
+
+// GET /api/wallets/:id - Get single wallet by ID
 router.get('/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);

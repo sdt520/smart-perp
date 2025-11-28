@@ -91,6 +91,20 @@ CREATE TABLE IF NOT EXISTS sync_jobs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 7. 每日 PnL 快照表
+CREATE TABLE IF NOT EXISTS daily_pnl_snapshots (
+    id SERIAL PRIMARY KEY,
+    wallet_id INTEGER NOT NULL REFERENCES wallets(id) ON DELETE CASCADE,
+    snapshot_date DATE NOT NULL,
+    pnl_1d DECIMAL(20, 4) DEFAULT 0,          -- 当日 PnL（与前一天的差值）
+    cumulative_pnl DECIMAL(20, 4) DEFAULT 0,  -- 累计 PnL（30D PnL 快照）
+    trades_count INTEGER DEFAULT 0,            -- 当日交易数
+    win_rate DECIMAL(5, 2) DEFAULT 0,         -- 当日胜率
+    volume DECIMAL(20, 4) DEFAULT 0,          -- 当日交易量
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(wallet_id, snapshot_date)
+);
+
 -- 索引
 CREATE INDEX IF NOT EXISTS idx_wallets_platform ON wallets(platform_id);
 CREATE INDEX IF NOT EXISTS idx_wallets_active ON wallets(is_active) WHERE is_active = true;
@@ -100,6 +114,8 @@ CREATE INDEX IF NOT EXISTS idx_trades_wallet_time ON trades(wallet_id, traded_at
 CREATE INDEX IF NOT EXISTS idx_trades_platform_time ON trades(platform_id, traded_at DESC);
 CREATE INDEX IF NOT EXISTS idx_leaderboard_platform_period ON leaderboard_snapshots(platform_id, period, snapshot_at DESC);
 CREATE INDEX IF NOT EXISTS idx_sync_jobs_status ON sync_jobs(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_daily_pnl_wallet_date ON daily_pnl_snapshots(wallet_id, snapshot_date DESC);
+CREATE INDEX IF NOT EXISTS idx_daily_pnl_date ON daily_pnl_snapshots(snapshot_date DESC);
 
 -- 触发器：自动更新 updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -160,5 +176,6 @@ COMMENT ON TABLE wallet_metrics IS '钱包指标快照表（Worker计算）';
 COMMENT ON TABLE trades IS '原始交易记录表';
 COMMENT ON TABLE leaderboard_snapshots IS '平台排行榜快照表';
 COMMENT ON TABLE sync_jobs IS '数据同步任务表';
+COMMENT ON TABLE daily_pnl_snapshots IS '每日PnL快照表（用于收益曲线）';
 COMMENT ON VIEW v_wallet_leaderboard IS '钱包排行榜视图（前端API用）';
 

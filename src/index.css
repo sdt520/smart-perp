@@ -1,26 +1,37 @@
 @import "tailwindcss";
 
 :root {
-  --color-bg-primary: #0a0b0d;
-  --color-bg-secondary: #12141a;
-  --color-bg-tertiary: #1a1d25;
-  --color-border: #2a2e3a;
-  --color-accent-green: #00ff88;
-  --color-accent-red: #ff3366;
-  --color-accent-blue: #00d4ff;
-  --color-text-primary: #ffffff;
-  --color-text-secondary: #8b8f9a;
-  --color-text-muted: #5a5e6a;
+  /* Tempo.xyz inspired color scheme - 精致简洁 */
+  --color-bg-primary: #050506;
+  --color-bg-secondary: #0a0a0c;
+  --color-bg-tertiary: #111114;
+  --color-bg-elevated: #18181b;
+  
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-border-hover: rgba(255, 255, 255, 0.1);
+  --color-border-active: rgba(255, 255, 255, 0.15);
+  
+  /* Accent colors - 更克制的配色 */
+  --color-accent-primary: #10b981;
+  --color-accent-negative: #ef4444;
+  --color-accent-blue: #60a5fa;
+  --color-accent-purple: #a78bfa;
+  
+  /* Text colors */
+  --color-text-primary: #fafafa;
+  --color-text-secondary: #a1a1aa;
+  --color-text-tertiary: #71717a;
+  --color-text-muted: #52525b;
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-border) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }
 
 *::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 
 *::-webkit-scrollbar-track {
@@ -28,73 +39,96 @@
 }
 
 *::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
 }
 
 body {
   margin: 0;
-  font-family: 'Outfit', system-ui, sans-serif;
+  font-family: 'Geist', 'Inter', system-ui, -apple-system, sans-serif;
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .font-mono {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Geist Mono', 'JetBrains Mono', 'SF Mono', monospace;
 }
 
-/* Animated gradient background */
-.bg-grid-pattern {
-  background-image: 
-    linear-gradient(rgba(42, 46, 58, 0.3) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(42, 46, 58, 0.3) 1px, transparent 1px);
-  background-size: 50px 50px;
+/* Subtle background gradient - 微妙的背景渐变 */
+.bg-gradient-subtle {
+  background: 
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(16, 185, 129, 0.08), transparent),
+    var(--color-bg-primary);
 }
 
-/* Glow effects */
-.glow-green {
-  box-shadow: 0 0 20px rgba(0, 255, 136, 0.15);
+/* Glass morphism card style */
+.glass-card {
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--color-border);
 }
 
-.glow-red {
-  box-shadow: 0 0 20px rgba(255, 51, 102, 0.15);
-}
-
-.glow-blue {
-  box-shadow: 0 0 20px rgba(0, 212, 255, 0.15);
-}
-
-/* Table row hover effect */
+/* Table row hover effect - 更微妙 */
 .table-row-hover {
-  transition: all 0.2s ease;
+  transition: background 0.15s ease;
 }
 
 .table-row-hover:hover {
-  background: linear-gradient(90deg, rgba(0, 212, 255, 0.05), transparent);
-  transform: translateX(2px);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 /* Pulse animation for loading */
-@keyframes pulse-glow {
+@keyframes pulse-subtle {
   0%, 100% {
     opacity: 1;
   }
   50% {
-    opacity: 0.5;
+    opacity: 0.6;
   }
 }
 
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
 }
 
-/* Sort indicator animation */
-.sort-indicator {
-  transition: transform 0.2s ease;
+/* Fade in animation */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
 }
 
 /* Number formatting */
 .tabular-nums {
   font-variant-numeric: tabular-nums;
+}
+
+/* Input focus ring */
+input:focus,
+select:focus,
+button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+/* Selection style */
+::selection {
+  background: rgba(16, 185, 129, 0.3);
+  color: white;
 }

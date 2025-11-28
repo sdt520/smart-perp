@@ -186,6 +186,11 @@ export async function syncWalletTrades(walletId: number, address: string): Promi
     for (const fill of fills) {
       const txHash = fill.hash;
       
+      // Skip invalid coins (e.g., @107, @142 - internal Hyperliquid indices, xyz:XYZ100 - special tokens)
+      if (fill.coin.startsWith('@') || /^\d+$/.test(fill.coin) || fill.coin.includes(':')) {
+        continue;
+      }
+      
       // Check if trade exists
       const existing = await db.query(
         'SELECT id FROM trades WHERE platform_id = $1 AND tx_hash = $2',
@@ -516,4 +521,120 @@ export async function calculateCoinMetrics(): Promise<void> {
   await updateCoinsList();
 
   console.log('📊 Per-coin metrics calculation complete.');
+}
+
+/**
+ * Take daily PnL snapshots for all active wallets
+ * This stores the current 30D PnL as a daily snapshot for building accurate PnL curves
+ */
+export async function takeDailyPnlSnapshots(): Promise<void> {
+  console.log('📸 Taking daily PnL snapshots...');
+  
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+  
+  // Get all active wallets with their current metrics
+  const wallets = await db.query<{
+    id: number;
+    address: string;
+    pnl_1d: number;
+    pnl_30d: number;
+    trades_count_7d: number;
+    win_rate_30d: number;
+    total_volume_7d: number;
+  }>(`
+    SELECT 
+      w.id,
+      w.address,
+      COALESCE(m.pnl_1d, 0)::float AS pnl_1d,
+      COALESCE(m.pnl_30d, 0)::float AS pnl_30d,
+      COALESCE(m.trades_count_7d, 0) AS trades_count_7d,
+      COALESCE(m.win_rate_30d, 0)::float AS win_rate_30d,
+      COALESCE(m.total_volume_7d, 0)::float AS total_volume_7d
+    FROM wallets w
+    LEFT JOIN wallet_metrics m ON w.id = m.wallet_id
+    WHERE w.is_active = true
+  `);
+
+  console.log(`📊 Found ${wallets.rows.length} active wallets`);
+
+  let inserted = 0;
+  let updated = 0;
+
+  for (const wallet of wallets.rows) {
+    try {
+      // Get yesterday's snapshot to calculate daily change
+      const yesterday = await db.query<{ cumulative_pnl: number }>(`
+        SELECT cumulative_pnl
+        FROM daily_pnl_snapshots
+        WHERE wallet_id = $1 AND snapshot_date < $2
+        ORDER BY snapshot_date DESC
+        LIMIT 1
+      `, [wallet.id, today]);
+
+      const yesterdayCumulativePnl = yesterday.rows[0]?.cumulative_pnl || 0;
+      
+      // Daily PnL is the difference between today's 30D cumulative and yesterday's snapshot
+      // Note: This is an approximation. For more accurate daily PnL, we use pnl_1d when available
+      const dailyPnl = wallet.pnl_1d || (wallet.pnl_30d - yesterdayCumulativePnl);
+
+      // Upsert today's snapshot
+      const result = await db.query<{ is_insert: boolean }>(`
+        INSERT INTO daily_pnl_snapshots 
+        (wallet_id, snapshot_date, pnl_1d, cumulative_pnl, trades_count, win_rate, volume)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (wallet_id, snapshot_date) DO UPDATE SET
+          pnl_1d = EXCLUDED.pnl_1d,
+          cumulative_pnl = EXCLUDED.cumulative_pnl,
+          trades_count = EXCLUDED.trades_count,
+          win_rate = EXCLUDED.win_rate,
+          volume = EXCLUDED.volume
+        RETURNING (xmax = 0) AS is_insert
+      `, [
+        wallet.id,
+        today,
+        dailyPnl,
+        wallet.pnl_30d,  // Current 30D PnL as cumulative
+        Math.round(wallet.trades_count_7d / 7),  // Approximate daily trades
+        wallet.win_rate_30d,
+        wallet.total_volume_7d / 7,  // Approximate daily volume
+      ]);
+
+      if (result.rows[0]?.is_insert) {
+        inserted++;
+      } else {
+        updated++;
+      }
+    } catch (error) {
+      console.error(`  ❌ Error snapshotting ${wallet.address.slice(0, 10)}...:`, error);
+    }
+  }
+
+  console.log(`📸 Daily snapshots complete: ${inserted} inserted, ${updated} updated`);
+}
+
+/**
+ * Get PnL history for a wallet (for PnL curve)
+ */
+export async function getWalletPnlHistory(walletId: number, days = 30): Promise<{
+  date: string;
+  pnl: number;
+  cumulativePnl: number;
+}[]> {
+  const result = await db.query<{
+    snapshot_date: Date;
+    pnl_1d: number;
+    cumulative_pnl: number;
+  }>(`
+    SELECT snapshot_date, pnl_1d, cumulative_pnl
+    FROM daily_pnl_snapshots
+    WHERE wallet_id = $1
+    ORDER BY snapshot_date DESC
+    LIMIT $2
+  `, [walletId, days]);
+
+  return result.rows.reverse().map(row => ({
+    date: row.snapshot_date.toISOString().split('T')[0],
+    pnl: row.pnl_1d,
+    cumulativePnl: row.cumulative_pnl,
+  }));
 }

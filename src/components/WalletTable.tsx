@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { SmartWallet, SortConfig, SortField } from '../types';
 
 interface WalletTableProps {
   wallets: SmartWallet[];
   loading?: boolean;
-  startIndex?: number; // 分页起始索引
+  startIndex?: number;
 }
 
 const columns: { key: SortField | 'address'; label: string; align: 'left' | 'right' }[] = [
@@ -41,7 +42,7 @@ function shortenAddress(address: string): string {
 
 function TwitterIcon() {
   return (
-    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
       <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
     </svg>
   );
@@ -49,7 +50,7 @@ function TwitterIcon() {
 
 function CopyIcon() {
   return (
-    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
       <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
     </svg>
@@ -58,7 +59,7 @@ function CopyIcon() {
 
 function CheckIcon() {
   return (
-    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
       <path d="M20 6L9 17l-5-5" />
     </svg>
   );
@@ -67,25 +68,24 @@ function CheckIcon() {
 function SortIcon({ direction }: { direction: 'asc' | 'desc' | null }) {
   if (!direction) {
     return (
-      <svg className="w-4 h-4 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg className="w-3.5 h-3.5 opacity-20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
         <path d="M7 10l5-5 5 5M7 14l5 5 5-5" />
       </svg>
     );
   }
   return (
     <svg
-      className={`w-4 h-4 transition-transform ${direction === 'desc' ? 'rotate-180' : ''}`}
+      className={`w-3.5 h-3.5 transition-transform ${direction === 'desc' ? 'rotate-180' : ''}`}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.5"
     >
       <path d="M7 14l5-5 5 5" />
     </svg>
   );
 }
 
-// Copy button component with feedback
 function CopyButton({ address }: { address: string }) {
   const [copied, setCopied] = useState(false);
 
@@ -105,10 +105,10 @@ function CopyButton({ address }: { address: string }) {
       onClick={handleCopy}
       className={`p-1 rounded transition-colors ${
         copied
-          ? 'text-[var(--color-accent-green)]'
-          : 'text-[var(--color-text-muted)] hover:text-[var(--color-accent-blue)]'
+          ? 'text-[var(--color-accent-primary)]'
+          : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
       }`}
-      title={copied ? '已复制!' : '复制地址'}
+      title={copied ? '已复制' : '复制地址'}
     >
       {copied ? <CheckIcon /> : <CopyIcon />}
     </button>
@@ -139,20 +139,20 @@ export function WalletTable({ wallets, loading, startIndex = 0 }: WalletTablePro
 
   if (loading) {
     return (
-      <div className="bg-[var(--color-bg-secondary)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
-        <div className="p-12 text-center">
-          <div className="inline-flex items-center gap-3 text-[var(--color-text-secondary)]">
+      <div className="glass-card rounded-2xl overflow-hidden animate-fade-in">
+        <div className="p-16 text-center">
+          <div className="inline-flex items-center gap-3 text-[var(--color-text-tertiary)]">
             <svg
-              className="w-6 h-6 animate-spin"
+              className="w-5 h-5 animate-spin"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth="1.5"
             >
-              <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+              <circle cx="12" cy="12" r="10" strokeOpacity="0.2" />
               <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
             </svg>
-            <span className="text-lg">正在加载钱包数据...</span>
+            <span>正在加载钱包数据...</span>
           </div>
         </div>
       </div>
@@ -160,7 +160,7 @@ export function WalletTable({ wallets, loading, startIndex = 0 }: WalletTablePro
   }
 
   return (
-    <div className="bg-[var(--color-bg-secondary)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
+    <div className="glass-card rounded-2xl overflow-hidden animate-fade-in">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -169,14 +169,14 @@ export function WalletTable({ wallets, loading, startIndex = 0 }: WalletTablePro
                 <th
                   key={column.key}
                   className={`
-                    px-4 py-4 text-xs font-semibold uppercase tracking-wider
+                    px-4 py-4 text-xs font-medium tracking-wide
                     text-[var(--color-text-muted)]
                     ${column.align === 'right' ? 'text-right' : 'text-left'}
                     ${column.key !== 'address' ? 'cursor-pointer hover:text-[var(--color-text-secondary)] transition-colors' : ''}
                   `}
                   onClick={() => column.key !== 'address' && handleSort(column.key as SortField)}
                 >
-                  <div className={`flex items-center gap-2 ${column.align === 'right' ? 'justify-end' : ''}`}>
+                  <div className={`flex items-center gap-1.5 ${column.align === 'right' ? 'justify-end' : ''}`}>
                     {column.label}
                     {column.key !== 'address' && (
                       <SortIcon
@@ -195,28 +195,26 @@ export function WalletTable({ wallets, loading, startIndex = 0 }: WalletTablePro
                 className="table-row-hover border-b border-[var(--color-border)]/50 last:border-b-0"
               >
                 {/* Address */}
-                <td className="px-4 py-4">
+                <td className="px-4 py-3.5">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--color-accent-blue)]/20 to-[var(--color-accent-green)]/20 flex items-center justify-center text-sm font-bold text-[var(--color-accent-blue)]">
+                    <div className="w-7 h-7 rounded-lg bg-[var(--color-bg-tertiary)] flex items-center justify-center text-xs font-medium text-[var(--color-text-tertiary)]">
                       {startIndex + index + 1}
                     </div>
                     <div className="flex items-center gap-2">
-                      <a
-                        href={`https://app.hyperliquid.xyz/explorer/address/${wallet.address}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-mono text-sm text-[var(--color-text-primary)] hover:text-[var(--color-accent-blue)] transition-colors"
-                        title="在 Hyperliquid 浏览器中查看"
+                      <Link
+                        to={`/trader/${wallet.address}`}
+                        className="font-mono text-sm text-[var(--color-text-primary)] hover:text-[var(--color-accent-primary)] transition-colors"
+                        title="查看交易者详情"
                       >
                         {shortenAddress(wallet.address)}
-                      </a>
+                      </Link>
                       <CopyButton address={wallet.address} />
                       {wallet.twitter && (
                         <a
                           href={`https://twitter.com/${wallet.twitter}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[var(--color-text-muted)] hover:text-[#1DA1F2] transition-colors"
+                          className="text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
                           title={`@${wallet.twitter}`}
                         >
                           <TwitterIcon />
@@ -227,12 +225,12 @@ export function WalletTable({ wallets, loading, startIndex = 0 }: WalletTablePro
                 </td>
 
                 {/* 1D PnL */}
-                <td className="px-4 py-4 text-right">
+                <td className="px-4 py-3.5 text-right">
                   <span
-                    className={`font-mono text-sm font-medium tabular-nums ${
+                    className={`font-mono text-sm tabular-nums ${
                       wallet.pnl1d >= 0
-                        ? 'text-[var(--color-accent-green)]'
-                        : 'text-[var(--color-accent-red)]'
+                        ? 'text-[var(--color-accent-primary)]'
+                        : 'text-[var(--color-accent-negative)]'
                     }`}
                   >
                     {wallet.pnl1d >= 0 ? '+' : ''}${formatPnL(wallet.pnl1d)}
@@ -240,12 +238,12 @@ export function WalletTable({ wallets, loading, startIndex = 0 }: WalletTablePro
                 </td>
 
                 {/* 7D PnL */}
-                <td className="px-4 py-4 text-right">
+                <td className="px-4 py-3.5 text-right">
                   <span
-                    className={`font-mono text-sm font-medium tabular-nums ${
+                    className={`font-mono text-sm tabular-nums ${
                       wallet.pnl7d >= 0
-                        ? 'text-[var(--color-accent-green)]'
-                        : 'text-[var(--color-accent-red)]'
+                        ? 'text-[var(--color-accent-primary)]'
+                        : 'text-[var(--color-accent-negative)]'
                     }`}
                   >
                     {wallet.pnl7d >= 0 ? '+' : ''}${formatPnL(wallet.pnl7d)}
@@ -253,12 +251,12 @@ export function WalletTable({ wallets, loading, startIndex = 0 }: WalletTablePro
                 </td>
 
                 {/* 30D PnL */}
-                <td className="px-4 py-4 text-right">
+                <td className="px-4 py-3.5 text-right">
                   <span
-                    className={`font-mono text-sm font-medium tabular-nums ${
+                    className={`font-mono text-sm tabular-nums ${
                       wallet.pnl30d >= 0
-                        ? 'text-[var(--color-accent-green)]'
-                        : 'text-[var(--color-accent-red)]'
+                        ? 'text-[var(--color-accent-primary)]'
+                        : 'text-[var(--color-accent-negative)]'
                     }`}
                   >
                     {wallet.pnl30d >= 0 ? '+' : ''}${formatPnL(wallet.pnl30d)}
@@ -266,73 +264,57 @@ export function WalletTable({ wallets, loading, startIndex = 0 }: WalletTablePro
                 </td>
 
                 {/* 7D Win Rate */}
-                <td className="px-4 py-4 text-right">
+                <td className="px-4 py-3.5 text-right">
                   <div className="flex items-center justify-end gap-2">
-                    <div className="w-16 h-1.5 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
+                    <div className="w-12 h-1 bg-[var(--color-bg-elevated)] rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full ${
                           wallet.winRate7d >= 60
-                            ? 'bg-[var(--color-accent-green)]'
+                            ? 'bg-[var(--color-accent-primary)]'
                             : wallet.winRate7d >= 50
-                            ? 'bg-[var(--color-accent-blue)]'
-                            : 'bg-[var(--color-accent-red)]'
+                            ? 'bg-[var(--color-text-tertiary)]'
+                            : 'bg-[var(--color-accent-negative)]'
                         }`}
                         style={{ width: `${Math.min(wallet.winRate7d, 100)}%` }}
                       />
                     </div>
-                    <span
-                      className={`font-mono text-sm tabular-nums ${
-                        wallet.winRate7d >= 60
-                          ? 'text-[var(--color-accent-green)]'
-                          : wallet.winRate7d >= 50
-                          ? 'text-[var(--color-accent-blue)]'
-                          : 'text-[var(--color-accent-red)]'
-                      }`}
-                    >
+                    <span className="font-mono text-sm tabular-nums text-[var(--color-text-secondary)] w-12 text-right">
                       {wallet.winRate7d.toFixed(1)}%
                     </span>
                   </div>
                 </td>
 
                 {/* 30D Win Rate */}
-                <td className="px-4 py-4 text-right">
+                <td className="px-4 py-3.5 text-right">
                   <div className="flex items-center justify-end gap-2">
-                    <div className="w-16 h-1.5 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
+                    <div className="w-12 h-1 bg-[var(--color-bg-elevated)] rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full ${
                           wallet.winRate30d >= 60
-                            ? 'bg-[var(--color-accent-green)]'
+                            ? 'bg-[var(--color-accent-primary)]'
                             : wallet.winRate30d >= 50
-                            ? 'bg-[var(--color-accent-blue)]'
-                            : 'bg-[var(--color-accent-red)]'
+                            ? 'bg-[var(--color-text-tertiary)]'
+                            : 'bg-[var(--color-accent-negative)]'
                         }`}
                         style={{ width: `${Math.min(wallet.winRate30d, 100)}%` }}
                       />
                     </div>
-                    <span
-                      className={`font-mono text-sm tabular-nums ${
-                        wallet.winRate30d >= 60
-                          ? 'text-[var(--color-accent-green)]'
-                          : wallet.winRate30d >= 50
-                          ? 'text-[var(--color-accent-blue)]'
-                          : 'text-[var(--color-accent-red)]'
-                      }`}
-                    >
+                    <span className="font-mono text-sm tabular-nums text-[var(--color-text-secondary)] w-12 text-right">
                       {wallet.winRate30d.toFixed(1)}%
                     </span>
                   </div>
                 </td>
 
                 {/* 7D Trades */}
-                <td className="px-4 py-4 text-right">
-                  <span className="font-mono text-sm text-[var(--color-text-secondary)] tabular-nums">
+                <td className="px-4 py-3.5 text-right">
+                  <span className="font-mono text-sm text-[var(--color-text-tertiary)] tabular-nums">
                     {formatNumber(wallet.trades7d)}
                   </span>
                 </td>
 
                 {/* 30D Trades */}
-                <td className="px-4 py-4 text-right">
-                  <span className="font-mono text-sm text-[var(--color-text-secondary)] tabular-nums">
+                <td className="px-4 py-3.5 text-right">
+                  <span className="font-mono text-sm text-[var(--color-text-tertiary)] tabular-nums">
                     {formatNumber(wallet.trades30d)}
                   </span>
                 </td>

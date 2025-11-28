@@ -102,7 +102,7 @@
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | id | SERIAL | 主键 |
-| job_type | VARCHAR(50) | 任务类型 (leaderboard_sync, trades_sync, metrics_calc) |
+| job_type | VARCHAR(50) | 任务类型 (leaderboard_sync, trades_sync, metrics_calc, daily_pnl_snapshot) |
 | platform_id | VARCHAR(50) | 平台ID（可选）|
 | status | VARCHAR(20) | 状态 (pending, running, completed, failed) |
 | started_at | TIMESTAMP | 开始时间 |
@@ -110,6 +110,24 @@
 | error_message | TEXT | 错误信息 |
 | metadata | JSONB | 额外元数据 |
 | created_at | TIMESTAMP | 创建时间 |
+
+### 7. daily_pnl_snapshots - 每日PnL快照表
+存储每日 PnL 快照，用于绘制准确的收益曲线
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | SERIAL | 主键 |
+| wallet_id | INTEGER | 钱包ID，外键 |
+| snapshot_date | DATE | 快照日期 |
+| pnl_1d | DECIMAL(20,4) | 当日 PnL |
+| cumulative_pnl | DECIMAL(20,4) | 累计 PnL（30D PnL 快照）|
+| trades_count | INTEGER | 当日交易数 |
+| win_rate | DECIMAL(5,2) | 当日胜率 |
+| volume | DECIMAL(20,4) | 当日交易量 |
+| created_at | TIMESTAMP | 创建时间 |
+
+**索引**: (wallet_id, snapshot_date) UNIQUE
+**索引**: snapshot_date DESC (用于按日期查询)
 
 ## 数据流程
 
@@ -161,8 +179,11 @@
 
 | 任务 | 频率 | 说明 |
 |------|------|------|
-| 排行榜同步 | 每 6 小时 | 从各平台拉取排行榜，发现新钱包 |
-| 交易记录同步 | 每 1 小时 | 拉取活跃钱包的最新交易记录 |
-| 指标计算 | 每 30 分钟 | 根据交易记录计算各项指标 |
+| 排行榜同步 | 每 12 小时 | 从各平台拉取排行榜，发现新钱包 |
+| 交易记录同步 | 每 12 小时 | 拉取活跃钱包的最新交易记录 |
+| 指标计算 | 交易同步后 | 根据交易记录计算各项指标 |
+| 每日 PnL 快照 | 指标计算后 | 记录每个钱包的每日 PnL，用于收益曲线 |
 | 数据清理 | 每天 | 清理超过 90 天的交易记录 |
+
+> **注意**: 由于 Hyperliquid API 只返回最近几天的交易记录（`userFillsByTime` 接口有 2000 条限制），无法获取完整的 30 天历史。因此我们通过每日快照的方式，逐步积累准确的收益曲线数据。程序运行 30 天后，即可获得完整的 30D 收益曲线。
 
