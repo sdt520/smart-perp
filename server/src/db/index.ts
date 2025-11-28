@@ -1,4 +1,5 @@
 import pg from 'pg';
+import type { QueryResultRow } from 'pg';
 const { Pool } = pg;
 
 const pool = new Pool({
@@ -16,7 +17,7 @@ pool.on('error', (err) => {
 });
 
 export const db = {
-  query: <T>(text: string, params?: unknown[]) => pool.query<T>(text, params),
+  query: <T extends QueryResultRow>(text: string, params?: unknown[]) => pool.query<T>(text, params),
   getClient: () => pool.connect(),
 };
 

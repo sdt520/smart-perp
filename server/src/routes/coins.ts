@@ -118,7 +118,13 @@ router.get('/:symbol/stats', async (req, res) => {
       WHERE coin = $1
     `;
 
-    const result = await db.query(query, [symbol.toUpperCase()]);
+    const result = await db.query<{
+      total_traders: number;
+      total_pnl_30d: number;
+      avg_win_rate: number;
+      total_trades: number;
+      total_volume: number;
+    }>(query, [symbol.toUpperCase()]);
     const stats = result.rows[0];
 
     // Get top performer for this coin
