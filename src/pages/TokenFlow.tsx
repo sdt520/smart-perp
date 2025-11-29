@@ -521,7 +521,7 @@ export function TokenFlow() {
                   className="w-4 h-4 accent-[var(--color-accent-primary)]"
                 />
                 <span className={`text-sm ${addressSource === 'top500' ? 'text-[var(--color-text-primary)]' : 'text-[var(--color-text-muted)]'} group-hover:text-[var(--color-text-primary)] transition-colors`}>
-                  Top 500 聪明钱
+                  Top 聪明钱
                 </span>
               </label>
               <label className={`flex items-center gap-3 ${isAuthenticated ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'} group`}>

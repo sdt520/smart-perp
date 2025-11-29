@@ -165,7 +165,7 @@ export function Home() {
         <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
           <div className="flex items-center gap-4">
             <h3 className="text-lg font-medium text-[var(--color-text-primary)]">
-              {selectedCoin ? `${selectedCoin} 交易者` : 'Top 500 聪明钱'}
+              {selectedCoin ? `${selectedCoin} 交易者` : 'Top 聪明钱'}
               {!selectedCoin && total > 0 && (
                 <span className="ml-2 text-sm font-normal text-[var(--color-text-muted)]">
                   {total.toLocaleString()} 个
