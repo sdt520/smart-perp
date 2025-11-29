@@ -13,7 +13,7 @@ declare global {
         email?: string;
         name?: string;
         walletAddress?: string;
-        authProvider: string;
+        authProvider: 'google' | 'wallet';
       };
     }
   }
@@ -47,7 +47,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
       email: user.email,
       name: user.name,
       walletAddress: user.wallet_address,
-      authProvider: user.auth_provider,
+      authProvider: user.auth_provider as 'google' | 'wallet',
     };
 
     next();
