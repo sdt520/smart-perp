@@ -19,7 +19,9 @@ function formatDate(dateStr: string): string {
 
 function formatPnL(value: number): string {
   const absValue = Math.abs(value);
-  if (absValue >= 1000000) {
+  if (absValue >= 1000000000) {
+    return `$${(value / 1000000000).toFixed(1)}B`;
+  } else if (absValue >= 1000000) {
     return `$${(value / 1000000).toFixed(1)}M`;
   } else if (absValue >= 1000) {
     return `$${(value / 1000).toFixed(0)}K`;

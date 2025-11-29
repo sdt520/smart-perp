@@ -16,7 +16,9 @@ export function StatsCards({ wallets }: StatsCardsProps) {
   const totalVolume = wallets.reduce((sum, w) => sum + w.volume30d, 0);
 
   const formatLargeNumber = (num: number): string => {
-    if (Math.abs(num) >= 1000000) {
+    if (Math.abs(num) >= 1000000000) {
+      return `${(num / 1000000000).toFixed(2)}B`;
+    } else if (Math.abs(num) >= 1000000) {
       return `${(num / 1000000).toFixed(2)}M`;
     } else if (Math.abs(num) >= 1000) {
       return `${(num / 1000).toFixed(1)}K`;

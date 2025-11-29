@@ -3,6 +3,18 @@ import { WalletTable, StatsCards, CoinSelector, CoinWalletTable, Pagination } fr
 import { useWallets } from '../hooks/useWallets';
 import { fetchCoinWallets, fetchCoinStats, type CoinWallet, type CoinStats } from '../services/api';
 
+function formatLargeNumber(num: number): string {
+  const absValue = Math.abs(num);
+  if (absValue >= 1000000000) {
+    return `${(num / 1000000000).toFixed(2)}B`;
+  } else if (absValue >= 1000000) {
+    return `${(num / 1000000).toFixed(2)}M`;
+  } else if (absValue >= 1000) {
+    return `${(num / 1000).toFixed(1)}K`;
+  }
+  return num.toFixed(0);
+}
+
 export function Home() {
   const { 
     wallets, 
@@ -140,7 +152,7 @@ export function Home() {
             </div>
             <div className="glass-card rounded-2xl p-6 animate-fade-in">
               <p className="text-sm text-[var(--color-text-tertiary)] mb-2">30天成交量</p>
-              <p className="text-2xl font-semibold font-mono text-[var(--color-text-primary)]">${(coinStats.totalVolume / 1000000).toFixed(2)}M</p>
+              <p className="text-2xl font-semibold font-mono text-[var(--color-text-primary)]">${formatLargeNumber(coinStats.totalVolume)}</p>
             </div>
           </div>
         ) : (
