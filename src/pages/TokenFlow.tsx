@@ -444,10 +444,11 @@ export function TokenFlow() {
     return () => clearInterval(interval);
   }, [fetchData, selectedCoin, addressPool]);
 
-  // Clear events when address source changes
+  // Clear events and refetch when address source changes
   useEffect(() => {
     setEvents([]);
-  }, [addressSource]);
+    fetchData();
+  }, [addressSource, fetchData]);
 
   // Filter events by direction and address source
   const filteredEvents = useMemo(() => {
