@@ -105,6 +105,33 @@ CREATE TABLE IF NOT EXISTS daily_pnl_snapshots (
     UNIQUE(wallet_id, snapshot_date)
 );
 
+-- 8. 币种表
+CREATE TABLE IF NOT EXISTS coins (
+    id SERIAL PRIMARY KEY,
+    symbol VARCHAR(20) NOT NULL UNIQUE,
+    trade_count INTEGER DEFAULT 0,
+    last_seen_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 9. 钱包-币种指标表
+CREATE TABLE IF NOT EXISTS wallet_coin_metrics (
+    id SERIAL PRIMARY KEY,
+    wallet_id INTEGER NOT NULL REFERENCES wallets(id) ON DELETE CASCADE,
+    coin VARCHAR(20) NOT NULL,
+    pnl_7d DECIMAL(20, 4) DEFAULT 0,
+    pnl_30d DECIMAL(20, 4) DEFAULT 0,
+    win_rate_7d DECIMAL(5, 2) DEFAULT 0,
+    win_rate_30d DECIMAL(5, 2) DEFAULT 0,
+    trades_count_7d INTEGER DEFAULT 0,
+    trades_count_30d INTEGER DEFAULT 0,
+    total_volume_30d DECIMAL(20, 4) DEFAULT 0,
+    last_trade_at TIMESTAMP WITH TIME ZONE,
+    calculated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(wallet_id, coin)
+);
+
 -- 索引
 CREATE INDEX IF NOT EXISTS idx_wallets_platform ON wallets(platform_id);
 CREATE INDEX IF NOT EXISTS idx_wallets_active ON wallets(is_active) WHERE is_active = true;
@@ -116,6 +143,9 @@ CREATE INDEX IF NOT EXISTS idx_leaderboard_platform_period ON leaderboard_snapsh
 CREATE INDEX IF NOT EXISTS idx_sync_jobs_status ON sync_jobs(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_daily_pnl_wallet_date ON daily_pnl_snapshots(wallet_id, snapshot_date DESC);
 CREATE INDEX IF NOT EXISTS idx_daily_pnl_date ON daily_pnl_snapshots(snapshot_date DESC);
+CREATE INDEX IF NOT EXISTS idx_wallet_coin_metrics_wallet ON wallet_coin_metrics(wallet_id);
+CREATE INDEX IF NOT EXISTS idx_wallet_coin_metrics_coin ON wallet_coin_metrics(coin);
+CREATE INDEX IF NOT EXISTS idx_wallet_coin_metrics_pnl ON wallet_coin_metrics(pnl_30d DESC);
 
 -- 触发器：自动更新 updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -177,5 +207,7 @@ COMMENT ON TABLE trades IS '原始交易记录表';
 COMMENT ON TABLE leaderboard_snapshots IS '平台排行榜快照表';
 COMMENT ON TABLE sync_jobs IS '数据同步任务表';
 COMMENT ON TABLE daily_pnl_snapshots IS '每日PnL快照表（用于收益曲线）';
+COMMENT ON TABLE coins IS '交易币种表';
+COMMENT ON TABLE wallet_coin_metrics IS '钱包-币种指标表（按币种分析）';
 COMMENT ON VIEW v_wallet_leaderboard IS '钱包排行榜视图（前端API用）';
 
