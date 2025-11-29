@@ -72,7 +72,7 @@ router.post('/bind', authMiddleware, async (req: AuthRequest, res) => {
       data: {
         code,
         expiresAt: expiresAt.toISOString(),
-        botUsername: process.env.TELEGRAM_BOT_USERNAME || 'SmartPerpBot',
+        botUsername: process.env.TELEGRAM_BOT_USERNAME || 'smart_perp_bot',
       },
     });
   } catch (error) {
