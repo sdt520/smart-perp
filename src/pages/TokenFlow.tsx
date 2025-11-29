@@ -308,7 +308,7 @@ export function TokenFlow() {
   const [selectedCoin, setSelectedCoin] = useState<string | null>('BTC');
   const [timeRange, setTimeRange] = useState('24h');
   const [addressPool, setAddressPool] = useState(100);
-  const [minSize, setMinSize] = useState(10000);
+  const [minSize, setMinSize] = useState(0);
   const [direction, setDirection] = useState('all');
 
   // Data
