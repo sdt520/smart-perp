@@ -21,7 +21,16 @@ interface TelegramStatus {
   verified: boolean;
   username?: string;
   notificationsEnabled: boolean;
+  minPositionUsd: number;
 }
+
+const MIN_POSITION_OPTIONS = [
+  { value: 0, label: '全部' },
+  { value: 10000, label: '≥ $10K' },
+  { value: 50000, label: '≥ $50K' },
+  { value: 100000, label: '≥ $100K' },
+  { value: 500000, label: '≥ $500K' },
+];
 
 const API_BASE = import.meta.env.VITE_API_BASE || 
   (import.meta.env.PROD ? '/api' : 'http://localhost:3001/api');
@@ -347,6 +356,28 @@ export function Favorites() {
     }
   };
 
+  // 设置最小仓位
+  const handleSetMinPosition = async (minPositionUsd: number) => {
+    if (!telegramStatus?.verified) return;
+    
+    try {
+      const res = await fetch(`${API_BASE}/telegram/min-position`, {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ minPositionUsd }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTelegramStatus(prev => prev ? { ...prev, minPositionUsd } : null);
+      }
+    } catch (err) {
+      console.error('Failed to set min position:', err);
+    }
+  };
+
   // 等待 auth 加载完成
   if (authLoading) {
     return (
@@ -400,6 +431,17 @@ export function Favorites() {
                     {telegramStatus.username ? `@${telegramStatus.username}` : '已绑定'}
                   </span>
                 </div>
+                {/* 最小仓位选择器 */}
+                <select
+                  value={telegramStatus.minPositionUsd}
+                  onChange={(e) => handleSetMinPosition(Number(e.target.value))}
+                  className="px-2 py-1 bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] rounded-lg text-xs text-[var(--color-text-secondary)] focus:outline-none focus:border-[var(--color-accent-blue)]"
+                  title="最小仓位：只推送大于此金额的交易"
+                >
+                  {MIN_POSITION_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
                 <NotificationToggle 
                   enabled={telegramStatus.notificationsEnabled}
                   onToggle={handleToggleGlobal}

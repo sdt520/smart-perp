@@ -53,6 +53,7 @@ router.get('/status', authMiddleware, async (req: AuthRequest, res) => {
         verified: telegram.is_verified,
         username: telegram.telegram_username,
         notificationsEnabled: telegram.notifications_enabled,
+        minPositionUsd: parseFloat(String(telegram.min_position_usd)) || 0,
       },
     });
   } catch (error) {
@@ -115,6 +116,31 @@ router.post('/toggle-global', authMiddleware, async (req: AuthRequest, res) => {
     res.json({ success: true, data: { enabled } });
   } catch (error) {
     console.error('Toggle global notifications error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// POST /api/telegram/min-position - 设置最小仓位
+router.post('/min-position', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.id;
+    const { minPositionUsd } = req.body;
+    
+    if (typeof minPositionUsd !== 'number' || minPositionUsd < 0) {
+      res.status(400).json({ success: false, error: 'minPositionUsd must be a non-negative number' });
+      return;
+    }
+
+    const success = await telegramService.setMinPositionUsd(userId, minPositionUsd);
+    
+    if (!success) {
+      res.status(400).json({ success: false, error: 'Telegram not bound or not verified' });
+      return;
+    }
+
+    res.json({ success: true, data: { minPositionUsd } });
+  } catch (error) {
+    console.error('Set min position error:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });

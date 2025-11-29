@@ -49,12 +49,25 @@ export async function getUserTelegram(userId: number) {
     telegram_username: string | null;
     is_verified: boolean;
     notifications_enabled: boolean;
+    min_position_usd: number;
     created_at: Date;
   }>(
     'SELECT * FROM user_telegram WHERE user_id = $1',
     [userId]
   );
   return result.rows[0] || null;
+}
+
+// 设置最小仓位
+export async function setMinPositionUsd(userId: number, minPositionUsd: number): Promise<boolean> {
+  const result = await db.query(
+    `UPDATE user_telegram
+     SET min_position_usd = $2
+     WHERE user_id = $1 AND is_verified = true
+     RETURNING id`,
+    [userId, minPositionUsd]
+  );
+  return (result.rowCount ?? 0) > 0;
 }
 
 // 创建或更新 Telegram 绑定（开始验证流程）
@@ -189,9 +202,10 @@ export async function toggleAllAddressNotifications(
 export async function getUsersToNotify(traderAddress: string): Promise<Array<{
   userId: number;
   chatId: string;
+  minPositionUsd: number;
 }>> {
-  const result = await db.query<{ user_id: number; telegram_chat_id: string }>(
-    `SELECT DISTINCT ut.user_id, ut.telegram_chat_id
+  const result = await db.query<{ user_id: number; telegram_chat_id: string; min_position_usd: number }>(
+    `SELECT DISTINCT ut.user_id, ut.telegram_chat_id, COALESCE(ut.min_position_usd, 0) as min_position_usd
      FROM user_telegram ut
      JOIN user_favorites uf ON ut.user_id = uf.user_id
      LEFT JOIN favorite_notifications fn ON ut.user_id = fn.user_id 
@@ -206,6 +220,7 @@ export async function getUsersToNotify(traderAddress: string): Promise<Array<{
   return result.rows.map(r => ({
     userId: r.user_id,
     chatId: r.telegram_chat_id,
+    minPositionUsd: parseFloat(String(r.min_position_usd)) || 0,
   }));
 }
 
@@ -246,6 +261,10 @@ ${actionEmoji} <b>Smart Money Alert</b>
 
   let sentCount = 0;
   for (const user of usersToNotify) {
+    // 检查是否满足最小仓位要求
+    if (user.minPositionUsd > 0 && event.sizeUsd < user.minPositionUsd) {
+      continue;
+    }
     const sent = await sendTelegramMessage(user.chatId, message);
     if (sent) sentCount++;
   }

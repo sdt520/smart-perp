@@ -327,6 +327,7 @@ CREATE TABLE IF NOT EXISTS user_telegram (
     verification_code VARCHAR(20),                -- 验证码
     verification_expires_at TIMESTAMP WITH TIME ZONE,
     notifications_enabled BOOLEAN DEFAULT true,   -- 全局通知开关
+    min_position_usd DECIMAL(20, 4) DEFAULT 0,   -- 最小仓位 USD
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

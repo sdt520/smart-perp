@@ -72,15 +72,12 @@ export function Header() {
           <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <img 
               src="/logo.png" 
-              alt="Smart Perp Radar" 
+              alt="Smart Perp" 
               className="h-8 w-8 object-contain"
             />
-            <div>
-              <h1 className="text-base font-semibold tracking-tight text-[var(--color-text-primary)]">
-                Smart Perp
-                <span className="text-[var(--color-text-tertiary)] font-normal ml-1">Radar</span>
-              </h1>
-            </div>
+            <h1 className="text-base font-semibold tracking-tight text-[var(--color-text-primary)]">
+              Smart Perp
+            </h1>
           </Link>
 
           {/* Navigation */}
@@ -93,12 +90,9 @@ export function Header() {
             </Link>
             <Link
               to="/flow"
-              className="px-3 py-1.5 rounded-lg text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]/50 transition-all flex items-center gap-1"
+              className="px-3 py-1.5 rounded-lg text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]/50 transition-all"
             >
-              <span>交易流</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]">
-                New
-              </span>
+              交易流
             </Link>
             <div className="w-px h-4 bg-[var(--color-border)] mx-2"></div>
             {platforms.map((platform) => (

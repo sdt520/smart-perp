@@ -500,7 +500,7 @@ export function TokenFlow() {
             />
             
             <FilterSelect
-              label="最小名义"
+              label="最小仓位"
               value={minSize}
               options={MIN_SIZES}
               onChange={(v) => setMinSize(Number(v))}
