@@ -250,7 +250,6 @@ export function Home() {
             <WalletTable 
               wallets={wallets} 
               loading={loading} 
-              startIndex={(page - 1) * pageSize}
               sortConfig={sortConfig}
               onSort={updateSort}
             />
