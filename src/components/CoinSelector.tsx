@@ -78,19 +78,6 @@ export function CoinSelector({ selectedCoin, onSelectCoin }: CoinSelectorProps) 
         </svg>
       </button>
 
-      {/* Clear button when coin is selected */}
-      {selectedCoin && (
-        <button
-          onClick={() => onSelectCoin(null)}
-          className="ml-2 p-2 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] transition-colors"
-          title="清除筛选"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
-        </button>
-      )}
-
       {/* Dropdown - rendered via Portal */}
       {isOpen && createPortal(
         <>
