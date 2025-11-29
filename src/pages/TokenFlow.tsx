@@ -318,7 +318,7 @@ export function TokenFlow() {
   const [error, setError] = useState<string | null>(null);
 
   // WebSocket for real-time updates
-  const { isConnected, events: wsEvents } = useFlowWebSocket({
+  const { isConnected } = useFlowWebSocket({
     coin: selectedCoin,
     enabled: true,
     onEvent: (event: FlowEvent) => {
