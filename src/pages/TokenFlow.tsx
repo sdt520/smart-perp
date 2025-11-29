@@ -53,10 +53,6 @@ const DIRECTIONS = [
   { value: 'short', label: '只看空单' },
   { value: 'reversal', label: '只看反转' },
 ];
-
-// API Base
-const API_BASE = import.meta.env.VITE_API_BASE || '/api';
-
 // Helper functions
 function formatNumber(value: number, decimals = 2): string {
   const absValue = Math.abs(value);
@@ -352,7 +348,7 @@ function generateMockEvents(coin: string, count: number): TradeEvent[] {
   return events.sort((a, b) => b.timestamp - a.timestamp);
 }
 
-function generateMockOverview(coin: string): TokenOverview {
+function generateMockOverview(_coin: string): TokenOverview {
   const netLong = (Math.random() - 0.5) * 10000000;
   return {
     netLongShort24h: netLong,
