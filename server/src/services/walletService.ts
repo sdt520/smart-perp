@@ -158,33 +158,39 @@ export async function getWalletById(id: number): Promise<WalletLeaderboardItem |
 export async function getWalletByAddress(
   address: string,
   platformId: string
-): Promise<WalletLeaderboardItem | null> {
+): Promise<(WalletLeaderboardItem & { rank?: number }) | null> {
+  // Use a CTE to calculate rank based on pnl_30d
   const query = `
-    SELECT 
-      w.id,
-      w.address,
-      w.platform_id,
-      p.name AS platform_name,
-      w.twitter_handle,
-      w.label,
-      COALESCE(m.pnl_1d, 0)::float AS pnl_1d,
-      COALESCE(m.pnl_7d, 0)::float AS pnl_7d,
-      COALESCE(m.pnl_30d, 0)::float AS pnl_30d,
-      COALESCE(m.win_rate_7d, 0)::float AS win_rate_7d,
-      COALESCE(m.win_rate_30d, 0)::float AS win_rate_30d,
-      COALESCE(m.trades_count_7d, 0) AS trades_count_7d,
-      COALESCE(m.trades_count_30d, 0) AS trades_count_30d,
-      COALESCE(m.total_volume_7d, 0)::float AS total_volume_7d,
-      COALESCE(m.total_volume_30d, 0)::float AS total_volume_30d,
-      m.last_trade_at,
-      m.calculated_at
-    FROM wallets w
-    JOIN platforms p ON w.platform_id = p.id
-    LEFT JOIN wallet_metrics m ON w.id = m.wallet_id
-    WHERE w.address = $1 AND w.platform_id = $2
+    WITH ranked_wallets AS (
+      SELECT 
+        w.id,
+        w.address,
+        w.platform_id,
+        p.name AS platform_name,
+        w.twitter_handle,
+        w.label,
+        COALESCE(m.pnl_1d, 0)::float AS pnl_1d,
+        COALESCE(m.pnl_7d, 0)::float AS pnl_7d,
+        COALESCE(m.pnl_30d, 0)::float AS pnl_30d,
+        COALESCE(m.win_rate_7d, 0)::float AS win_rate_7d,
+        COALESCE(m.win_rate_30d, 0)::float AS win_rate_30d,
+        COALESCE(m.trades_count_7d, 0) AS trades_count_7d,
+        COALESCE(m.trades_count_30d, 0) AS trades_count_30d,
+        COALESCE(m.total_volume_7d, 0)::float AS total_volume_7d,
+        COALESCE(m.total_volume_30d, 0)::float AS total_volume_30d,
+        m.last_trade_at,
+        m.calculated_at,
+        ROW_NUMBER() OVER (ORDER BY m.pnl_30d DESC NULLS LAST) AS rank
+      FROM wallets w
+      JOIN platforms p ON w.platform_id = p.id
+      LEFT JOIN wallet_metrics m ON w.id = m.wallet_id
+      WHERE w.is_active = true
+    )
+    SELECT * FROM ranked_wallets
+    WHERE address = $1 AND platform_id = $2
   `;
 
-  const result = await db.query<WalletLeaderboardItem>(query, [address, platformId]);
+  const result = await db.query<WalletLeaderboardItem & { rank: number }>(query, [address, platformId]);
   return result.rows[0] || null;
 }
 
