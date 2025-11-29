@@ -10,8 +10,8 @@ export interface SmartWallet {
   winRate30d: number;
   trades7d: number;
   trades30d: number;
-  volume7d?: number;
-  volume30d?: number;
+  volume7d: number;
+  volume30d: number;
   twitter?: string;
   lastUpdated?: Date;
   lastTradeAt?: string;
@@ -24,8 +24,8 @@ export type SortField =
   | 'pnl30d' 
   | 'winRate7d' 
   | 'winRate30d' 
-  | 'trades7d' 
-  | 'trades30d';
+  | 'volume7d' 
+  | 'volume30d';
 
 export type SortDirection = 'asc' | 'desc';
 

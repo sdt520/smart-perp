@@ -18,8 +18,8 @@ const columns: { key: SortField | 'address'; label: string; align: 'left' | 'rig
   { key: 'pnl30d', label: '30D PnL', align: 'right' },
   { key: 'winRate7d', label: '7D 胜率', align: 'right' },
   { key: 'winRate30d', label: '30D 胜率', align: 'right' },
-  { key: 'trades7d', label: '7D 交易', align: 'right' },
-  { key: 'trades30d', label: '30D 交易', align: 'right' },
+  { key: 'volume7d', label: '7D 成交量', align: 'right' },
+  { key: 'volume30d', label: '30D 成交量', align: 'right' },
 ];
 
 function formatPnL(value: number): string {
@@ -316,17 +316,17 @@ export function WalletTable({ wallets, loading, sortConfig, onSort, onLoginRequi
                   </div>
                 </td>
 
-                {/* 7D Trades */}
+                {/* 7D Volume */}
                 <td className="px-4 py-3.5 text-right">
                   <span className="font-mono text-sm text-[var(--color-text-tertiary)] tabular-nums">
-                    {formatNumber(wallet.trades7d)}
+                    ${formatPnL(wallet.volume7d)}
                   </span>
                 </td>
 
-                {/* 30D Trades */}
+                {/* 30D Volume */}
                 <td className="px-4 py-3.5 text-right">
                   <span className="font-mono text-sm text-[var(--color-text-tertiary)] tabular-nums">
-                    {formatNumber(wallet.trades30d)}
+                    ${formatPnL(wallet.volume30d)}
                   </span>
                 </td>
               </tr>

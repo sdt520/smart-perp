@@ -149,8 +149,8 @@ export function TraderOverview({ trader }: TraderOverviewProps) {
       isEstimated: trader.isEstimated,
     },
     {
-      label: '30D 交易数',
-      value: trader.trades30d.toLocaleString(),
+      label: '30天成交量',
+      value: `$${formatPnL(trader.totalVolume)}`,
       isNeutral: true,
     },
     {

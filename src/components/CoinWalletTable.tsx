@@ -10,7 +10,7 @@ interface CoinWalletTableProps {
   total?: number;
 }
 
-type SortField = 'pnl_7d' | 'pnl_30d' | 'win_rate_7d' | 'win_rate_30d' | 'trades_count_7d' | 'trades_count_30d';
+type SortField = 'pnl_7d' | 'pnl_30d' | 'win_rate_7d' | 'win_rate_30d' | 'total_volume_7d' | 'total_volume_30d';
 
 const columns: { key: SortField | 'address'; label: string; align: 'left' | 'right' }[] = [
   { key: 'address', label: '钱包地址', align: 'left' },
@@ -18,8 +18,8 @@ const columns: { key: SortField | 'address'; label: string; align: 'left' | 'rig
   { key: 'pnl_30d', label: '30D PnL', align: 'right' },
   { key: 'win_rate_7d', label: '7D 胜率', align: 'right' },
   { key: 'win_rate_30d', label: '30D 胜率', align: 'right' },
-  { key: 'trades_count_7d', label: '7D 交易', align: 'right' },
-  { key: 'trades_count_30d', label: '30D 交易', align: 'right' },
+  { key: 'total_volume_7d', label: '7D 成交量', align: 'right' },
+  { key: 'total_volume_30d', label: '30D 成交量', align: 'right' },
 ];
 
 function formatPnL(value: number): string {
@@ -311,17 +311,17 @@ export function CoinWalletTable({ wallets, coin, loading, startIndex = 0 }: Coin
                   </div>
                 </td>
 
-                {/* 7D Trades */}
+                {/* 7D Volume */}
                 <td className="px-4 py-3.5 text-right">
                   <span className="font-mono text-sm text-[var(--color-text-tertiary)] tabular-nums">
-                    {formatNumber(wallet.trades_count_7d || 0)}
+                    ${formatPnL(wallet.total_volume_7d || 0)}
                   </span>
                 </td>
 
-                {/* 30D Trades */}
+                {/* 30D Volume */}
                 <td className="px-4 py-3.5 text-right">
                   <span className="font-mono text-sm text-[var(--color-text-tertiary)] tabular-nums">
-                    {formatNumber(wallet.trades_count_30d || 0)}
+                    ${formatPnL(wallet.total_volume_30d || 0)}
                   </span>
                 </td>
               </tr>

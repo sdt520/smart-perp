@@ -198,7 +198,7 @@ export async function getStats(platformId?: string): Promise<{
   totalWallets: number;
   totalPnl30d: number;
   avgWinRate: number;
-  totalTrades30d: number;
+  totalVolume30d: number;
   topPerformer: WalletLeaderboardItem | null;
 }> {
   const whereClause = platformId ? 'WHERE w.platform_id = $1 AND w.is_active = true' : 'WHERE w.is_active = true';
@@ -209,7 +209,7 @@ export async function getStats(platformId?: string): Promise<{
       COUNT(w.id)::int AS total_wallets,
       COALESCE(SUM(m.pnl_30d), 0)::float AS total_pnl_30d,
       COALESCE(AVG(m.win_rate_30d), 0)::float AS avg_win_rate,
-      COALESCE(SUM(m.trades_count_30d), 0)::int AS total_trades_30d
+      COALESCE(SUM(m.total_volume_30d), 0)::float AS total_volume_30d
     FROM wallets w
     LEFT JOIN wallet_metrics m ON w.id = m.wallet_id
     ${whereClause}
@@ -219,7 +219,7 @@ export async function getStats(platformId?: string): Promise<{
     total_wallets: number;
     total_pnl_30d: number;
     avg_win_rate: number;
-    total_trades_30d: number;
+    total_volume_30d: number;
   }>(query, params);
 
   const stats = result.rows[0];
@@ -236,7 +236,7 @@ export async function getStats(platformId?: string): Promise<{
     totalWallets: stats?.total_wallets || 0,
     totalPnl30d: stats?.total_pnl_30d || 0,
     avgWinRate: stats?.avg_win_rate || 0,
-    totalTrades30d: stats?.total_trades_30d || 0,
+    totalVolume30d: stats?.total_volume_30d || 0,
     topPerformer: topPerformers[0] || null,
   };
 }

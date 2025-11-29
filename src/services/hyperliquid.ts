@@ -362,6 +362,18 @@ export function calculateWalletMetrics(
   const pnl7d = fills7d.reduce((sum, f) => sum + parseFloat(f.closedPnl || '0'), 0);
   const pnl30d = fills30d.reduce((sum, f) => sum + parseFloat(f.closedPnl || '0'), 0);
 
+  // Calculate volume (notional value = size * price)
+  const calculateVolume = (periodFills: HyperliquidFill[]): number => {
+    return periodFills.reduce((sum, f) => {
+      const size = Math.abs(parseFloat(f.sz || '0'));
+      const price = parseFloat(f.px || '0');
+      return sum + size * price;
+    }, 0);
+  };
+
+  const volume7d = calculateVolume(fills7d);
+  const volume30d = calculateVolume(fills30d);
+
   // Calculate win rate (trades with positive closedPnl)
   const calculateWinRate = (periodFills: HyperliquidFill[]): number => {
     const closingTrades = periodFills.filter(f => parseFloat(f.closedPnl || '0') !== 0);
@@ -379,6 +391,8 @@ export function calculateWalletMetrics(
     winRate30d: calculateWinRate(fills30d),
     trades7d: fills7d.length,
     trades30d: fills30d.length,
+    volume7d,
+    volume30d,
     twitter,
     lastUpdated: new Date(),
   };
@@ -406,6 +420,8 @@ export async function fetchWalletData(
       winRate30d: 0,
       trades7d: 0,
       trades30d: 0,
+      volume7d: 0,
+      volume30d: 0,
       twitter,
       lastUpdated: new Date(),
     };

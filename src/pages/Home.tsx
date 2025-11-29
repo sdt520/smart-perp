@@ -139,8 +139,8 @@ export function Home() {
               <p className="text-2xl font-semibold font-mono text-[var(--color-text-primary)]">{coinStats.avgWinRate.toFixed(1)}%</p>
             </div>
             <div className="glass-card rounded-2xl p-6 animate-fade-in">
-              <p className="text-sm text-[var(--color-text-tertiary)] mb-2">30D 交易数</p>
-              <p className="text-2xl font-semibold font-mono text-[var(--color-text-primary)]">{coinStats.totalTrades.toLocaleString()}</p>
+              <p className="text-sm text-[var(--color-text-tertiary)] mb-2">30天成交量</p>
+              <p className="text-2xl font-semibold font-mono text-[var(--color-text-primary)]">${(coinStats.totalVolume / 1000000).toFixed(2)}M</p>
             </div>
           </div>
         ) : (

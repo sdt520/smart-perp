@@ -18,7 +18,7 @@ interface Stats {
   totalWallets: number;
   totalPnl30d: number;
   avgWinRate: number;
-  totalTrades30d: number;
+  totalVolume30d: number;
   topPerformer: SmartWallet | null;
 }
 
@@ -66,7 +66,7 @@ export function useWallets(options: UseWalletsOptions = {}) {
           totalWallets: mockWalletData.length,
           totalPnl30d: mockWalletData.reduce((sum, w) => sum + w.pnl30d, 0),
           avgWinRate: mockWalletData.reduce((sum, w) => sum + w.winRate30d, 0) / mockWalletData.length,
-          totalTrades30d: mockWalletData.reduce((sum, w) => sum + w.trades30d, 0),
+          totalVolume30d: mockWalletData.reduce((sum, w) => sum + w.volume30d, 0),
           topPerformer: mockWalletData.reduce((top, w) => (w.pnl30d > (top?.pnl30d || 0) ? w : top), mockWalletData[0]),
         });
         return;

@@ -47,7 +47,7 @@ interface StatsApiResponse {
   totalWallets: number;
   totalPnl30d: number;
   avgWinRate: number;
-  totalTrades30d: number;
+  totalVolume30d: number;
   topPerformer: WalletApiItem | null;
 }
 
@@ -58,8 +58,8 @@ const sortFieldMap: Record<SortField, string> = {
   pnl30d: 'pnl_30d',
   winRate7d: 'win_rate_7d',
   winRate30d: 'win_rate_30d',
-  trades7d: 'trades_count_7d',
-  trades30d: 'trades_count_30d',
+  volume7d: 'total_volume_7d',
+  volume30d: 'total_volume_30d',
 };
 
 // Transform API response to frontend format
@@ -73,6 +73,8 @@ function transformWallet(item: WalletApiItem): SmartWallet {
     winRate30d: item.win_rate_30d,
     trades7d: item.trades_count_7d,
     trades30d: item.trades_count_30d,
+    volume7d: item.total_volume_7d,
+    volume30d: item.total_volume_30d,
     twitter: item.twitter_handle || undefined,
     lastUpdated: item.calculated_at ? new Date(item.calculated_at) : new Date(),
     rank: item.rank,
@@ -137,7 +139,7 @@ export async function fetchStats(platform?: string): Promise<{
   totalWallets: number;
   totalPnl30d: number;
   avgWinRate: number;
-  totalTrades30d: number;
+  totalVolume30d: number;
   topPerformer: SmartWallet | null;
 }> {
   const url = platform 
@@ -160,7 +162,7 @@ export async function fetchStats(platform?: string): Promise<{
     totalWallets: data.data.totalWallets,
     totalPnl30d: data.data.totalPnl30d,
     avgWinRate: data.data.avgWinRate,
-    totalTrades30d: data.data.totalTrades30d,
+    totalVolume30d: data.data.totalVolume30d,
     topPerformer: data.data.topPerformer 
       ? transformWallet(data.data.topPerformer)
       : null,

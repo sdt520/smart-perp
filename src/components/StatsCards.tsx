@@ -13,7 +13,7 @@ export function StatsCards({ wallets }: StatsCardsProps) {
   const topPerformer = wallets.length > 0
     ? wallets.reduce((top, w) => (w.pnl30d > top.pnl30d ? w : top), wallets[0])
     : null;
-  const totalTrades = wallets.reduce((sum, w) => sum + w.trades30d, 0);
+  const totalVolume = wallets.reduce((sum, w) => sum + w.volume30d, 0);
 
   const formatLargeNumber = (num: number): string => {
     if (Math.abs(num) >= 1000000) {
@@ -44,9 +44,9 @@ export function StatsCards({ wallets }: StatsCardsProps) {
       isPositive: true,
     },
     {
-      title: '总交易数',
-      value: formatLargeNumber(totalTrades),
-      subtitle: '30天内',
+      title: '30天成交量',
+      value: `$${formatLargeNumber(totalVolume)}`,
+      subtitle: '所有跟踪钱包',
       isPositive: true,
     },
   ];
