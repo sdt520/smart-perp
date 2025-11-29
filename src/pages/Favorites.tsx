@@ -275,28 +275,6 @@ export function Favorites() {
     }
   };
 
-  // 切换全局通知
-  const handleToggleGlobal = async () => {
-    if (!telegramStatus?.verified) return;
-    
-    try {
-      const newEnabled = !telegramStatus.notificationsEnabled;
-      const res = await fetch(`${API_BASE}/telegram/toggle-global`, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ enabled: newEnabled }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setTelegramStatus(prev => prev ? { ...prev, notificationsEnabled: newEnabled } : null);
-      }
-    } catch (err) {
-      console.error('Failed to toggle global notifications:', err);
-    }
-  };
 
   // 切换单个地址通知
   const handleToggleAddress = async (address: string) => {
