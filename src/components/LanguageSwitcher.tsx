@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useLanguage } from '../contexts/LanguageContext';
-import { Language, languageNames } from '../i18n/translations';
+import { type Language, languageNames } from '../i18n/translations';
 
 const languages: Language[] = ['en', 'zh', 'ja', 'ko', 'ru'];
 
