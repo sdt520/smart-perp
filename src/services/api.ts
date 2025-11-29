@@ -471,17 +471,6 @@ function calculateSharpeRatio(history: TraderDetail['pnlHistory']): number {
   // Clamp to reasonable range
   return Math.max(-3, Math.min(5, sharpe));
 }
-
-// Backend PnL history response type
-interface PnlHistoryApiResponse {
-  date: string;
-  pnl: number;
-  cumulativePnl: number;
-  tradesCount: number;
-  winRate: number;
-  volume: number;
-}
-
 // Fetch trader detail by address
 export async function fetchTraderDetail(address: string): Promise<TraderDetail> {
   try {
