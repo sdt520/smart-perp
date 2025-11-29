@@ -1,45 +1,47 @@
 /**
- * Position State Engine
+ * Position State Engine (WebSocket-based)
  * 
- * 核心职责：
- * 1. 定期轮询 Top 500 聪明钱地址的持仓状态
- * 2. 比较新旧状态，识别有意义的仓位变化
- * 3. 生成 TokenFlowEvent 事件
- * 4. 更新 position_states 表，写入 token_flow_events 表
+ * 核心架构：
+ * 1. WebSocket 订阅公共 trades 流（按币种）
+ * 2. 本地维护 smartSet（Top 500 地址）
+ * 3. 过滤出 Smart Money 的交易
+ * 4. 维护仓位状态，检测有意义的变化
+ * 5. 生成 TokenFlowEvent 事件
  */
 
+import WebSocket from 'ws';
 import { db } from '../db/index.js';
+import { EventEmitter } from 'events';
 
 // ===== Types =====
 
-interface PositionState {
-  walletId: number;
-  address: string;
-  symbol: string;
-  side: 'long' | 'short' | 'flat';
-  size: number;      // 合约数量
-  notionalUsd: number;
-  entryPrice: number;
-  leverage: number;
-  unrealizedPnl: number;
-}
-
-interface HLPosition {
+interface WsTrade {
   coin: string;
-  szi: string;        // signed size: positive = long, negative = short
-  entryPx: string;
-  positionValue: string;
-  unrealizedPnl: string;
-  leverage: {
-    type: string;
-    value: number;
-  };
+  side: string;   // 'B' (buy) | 'A' (ask/sell)
+  px: string;     // price
+  sz: string;     // size
+  time: number;   // timestamp ms
+  tid: number;    // trade id
+  users: [string, string]; // [buyer, seller]
 }
 
-interface HLClearinghouseState {
-  assetPositions: Array<{
-    position: HLPosition;
-  }>;
+interface WsMessage {
+  channel: string;
+  data: WsTrade[] | Record<string, string>;
+}
+
+interface PositionState {
+  szi: number;           // 当前净仓位 (+多 -空)
+  avgEntryPx: number;    // 平均入场价格
+  realizedPnl: number;   // 已实现 PnL
+  lastTradeTs: number;   // 最后交易时间
+}
+
+interface SmartTraderMeta {
+  walletId: number;
+  rank: number;
+  pnl30d: number;
+  winRate30d: number;
 }
 
 type ActionType = 
@@ -49,321 +51,67 @@ type ActionType =
 
 interface TokenFlowEvent {
   symbol: string;
-  walletId: number;
   address: string;
+  walletId: number;
   action: ActionType;
-  sizeChange: number;
-  sizeChangeUsd: number;
-  newSize: number;
-  newNotionalUsd: number;
+  side: 'B' | 'A';
+  price: number;
+  size: number;
+  sizeUsd: number;
+  newPosition: number;
+  newPositionUsd: number;
   newSide: 'long' | 'short' | 'flat';
-  fillPrice: number;
-  entryPrice: number;
-  leverage: number;
+  avgEntryPx: number;
   traderRank: number;
   pnl30d: number;
   winRate30d: number;
+  timestamp: number;
 }
 
-// ===== Hyperliquid API =====
+// ===== Constants =====
 
+const HL_WS_URL = 'wss://api.hyperliquid.xyz/ws';
 const HL_API_BASE = 'https://api.hyperliquid.xyz';
 
-async function fetchUserPositions(address: string): Promise<Map<string, PositionState>> {
-  const positions = new Map<string, PositionState>();
-  
-  try {
-    const response = await fetch(`${HL_API_BASE}/info`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'clearinghouseState',
-        user: address,
-      }),
-    });
-    
-    if (!response.ok) {
-      console.error(`Failed to fetch positions for ${address}: ${response.status}`);
-      return positions;
-    }
-    
-    const data: HLClearinghouseState = await response.json();
-    
-    for (const ap of data.assetPositions || []) {
-      const pos = ap.position;
-      const size = parseFloat(pos.szi);
-      const absSize = Math.abs(size);
-      
-      if (absSize < 0.0000001) continue; // Skip dust positions
-      
-      const symbol = pos.coin;
-      const side: 'long' | 'short' = size > 0 ? 'long' : 'short';
-      const entryPrice = parseFloat(pos.entryPx);
-      const notionalUsd = Math.abs(parseFloat(pos.positionValue));
-      const unrealizedPnl = parseFloat(pos.unrealizedPnl);
-      const leverage = pos.leverage?.value || 1;
-      
-      positions.set(symbol, {
-        walletId: 0, // Will be set later
-        address,
-        symbol,
-        side,
-        size: absSize,
-        notionalUsd,
-        entryPrice,
-        leverage,
-        unrealizedPnl,
-      });
-    }
-  } catch (error) {
-    console.error(`Error fetching positions for ${address}:`, error);
-  }
-  
-  return positions;
-}
+// 关心的币种列表
+const WATCHED_COINS = [
+  'BTC', 'ETH', 'SOL', 'HYPE', 'DOGE', 'XRP', 'SUI', 'PEPE', 
+  'WIF', 'BONK', 'ARB', 'OP', 'AVAX', 'LINK', 'MATIC', 'APT',
+  'INJ', 'TIA', 'SEI', 'NEAR', 'ATOM', 'FTM', 'AAVE', 'UNI',
+  'LDO', 'MKR', 'CRV', 'SNX', 'RUNE', 'BLUR', 'JTO', 'PYTH',
+];
 
-async function fetchCurrentPrice(symbol: string): Promise<number> {
-  try {
-    const response = await fetch(`${HL_API_BASE}/info`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'allMids' }),
-    });
-    
-    if (!response.ok) return 0;
-    
-    const data: Record<string, string> = await response.json();
-    return parseFloat(data[symbol] || '0');
-  } catch {
-    return 0;
-  }
-}
+// ===== State =====
 
-// ===== Position State Engine =====
+// Smart Money 地址集合 (address -> metadata)
+const smartSet = new Map<string, SmartTraderMeta>();
+
+// 仓位状态 (address:coin -> state)
+const positionMap = new Map<string, PositionState>();
+
+// 当前价格 (coin -> price)
+const priceMap = new Map<string, number>();
+
+// 事件发射器
+export const eventEmitter = new EventEmitter();
+
+// WebSocket 连接
+let ws: WebSocket | null = null;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 10;
+const RECONNECT_DELAY = 5000;
+
+// ===== Smart Set Management =====
 
 /**
- * 比较新旧仓位状态，判断发生了什么动作
+ * 从数据库加载 Top N 聪明钱地址
  */
-function detectAction(
-  oldState: PositionState | null,
-  newState: PositionState | null
-): ActionType | null {
-  const oldSide = oldState?.side || 'flat';
-  const newSide = newState?.side || 'flat';
-  const oldSize = oldState?.size || 0;
-  const newSize = newState?.size || 0;
+export async function loadSmartSet(topN: number = 500): Promise<void> {
+  console.log(`📋 Loading Top ${topN} smart traders...`);
   
-  // flat -> long: 新开多
-  if (oldSide === 'flat' && newSide === 'long') {
-    return 'open_long';
-  }
-  
-  // flat -> short: 新开空
-  if (oldSide === 'flat' && newSide === 'short') {
-    return 'open_short';
-  }
-  
-  // long -> flat: 平多
-  if (oldSide === 'long' && newSide === 'flat') {
-    return 'close_long';
-  }
-  
-  // short -> flat: 平空
-  if (oldSide === 'short' && newSide === 'flat') {
-    return 'close_short';
-  }
-  
-  // long -> short: 多转空
-  if (oldSide === 'long' && newSide === 'short') {
-    return 'flip_long_to_short';
-  }
-  
-  // short -> long: 空转多
-  if (oldSide === 'short' && newSide === 'long') {
-    return 'flip_short_to_long';
-  }
-  
-  // long -> long: 加多或减多
-  if (oldSide === 'long' && newSide === 'long') {
-    if (newSize > oldSize * 1.01) { // 增加超过 1%
-      return 'add_long';
-    } else if (newSize < oldSize * 0.99) { // 减少超过 1%
-      return 'reduce_long';
-    }
-  }
-  
-  // short -> short: 加空或减空
-  if (oldSide === 'short' && newSide === 'short') {
-    if (newSize > oldSize * 1.01) {
-      return 'add_short';
-    } else if (newSize < oldSize * 0.99) {
-      return 'reduce_short';
-    }
-  }
-  
-  return null; // 无有意义的变化
-}
-
-/**
- * 从数据库加载钱包的缓存仓位状态
- */
-async function loadCachedPositions(walletId: number): Promise<Map<string, PositionState>> {
-  const positions = new Map<string, PositionState>();
-  
-  const result = await db.query(`
-    SELECT ps.*, w.address
-    FROM position_states ps
-    JOIN wallets w ON ps.wallet_id = w.id
-    WHERE ps.wallet_id = $1
-  `, [walletId]);
-  
-  for (const row of result.rows) {
-    positions.set(row.symbol, {
-      walletId: row.wallet_id,
-      address: row.address,
-      symbol: row.symbol,
-      side: row.side as 'long' | 'short' | 'flat',
-      size: parseFloat(row.size),
-      notionalUsd: parseFloat(row.notional_usd),
-      entryPrice: parseFloat(row.entry_price),
-      leverage: parseFloat(row.leverage),
-      unrealizedPnl: parseFloat(row.unrealized_pnl),
-    });
-  }
-  
-  return positions;
-}
-
-/**
- * 更新数据库中的仓位状态
- */
-async function updateCachedPosition(walletId: number, state: PositionState | null, symbol: string): Promise<void> {
-  if (!state || state.side === 'flat') {
-    // 删除已平仓位
-    await db.query(`
-      DELETE FROM position_states WHERE wallet_id = $1 AND symbol = $2
-    `, [walletId, symbol]);
-  } else {
-    // 插入或更新仓位
-    await db.query(`
-      INSERT INTO position_states (wallet_id, symbol, side, size, notional_usd, entry_price, leverage, unrealized_pnl, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-      ON CONFLICT (wallet_id, symbol) DO UPDATE SET
-        side = EXCLUDED.side,
-        size = EXCLUDED.size,
-        notional_usd = EXCLUDED.notional_usd,
-        entry_price = EXCLUDED.entry_price,
-        leverage = EXCLUDED.leverage,
-        unrealized_pnl = EXCLUDED.unrealized_pnl,
-        updated_at = NOW()
-    `, [walletId, symbol, state.side, state.size, state.notionalUsd, state.entryPrice, state.leverage, state.unrealizedPnl]);
-  }
-}
-
-/**
- * 写入 TokenFlowEvent 到数据库
- */
-async function insertFlowEvent(event: TokenFlowEvent): Promise<void> {
-  await db.query(`
-    INSERT INTO token_flow_events (
-      ts, symbol, wallet_id, address, action,
-      size_change, size_change_usd, new_size, new_notional_usd, new_side,
-      fill_price, entry_price, leverage,
-      trader_rank, pnl_30d, win_rate_30d
-    ) VALUES (
-      NOW(), $1, $2, $3, $4,
-      $5, $6, $7, $8, $9,
-      $10, $11, $12,
-      $13, $14, $15
-    )
-  `, [
-    event.symbol, event.walletId, event.address, event.action,
-    event.sizeChange, event.sizeChangeUsd, event.newSize, event.newNotionalUsd, event.newSide,
-    event.fillPrice, event.entryPrice, event.leverage,
-    event.traderRank, event.pnl30d, event.winRate30d,
-  ]);
-}
-
-/**
- * 处理单个钱包的仓位变化
- */
-async function processWallet(
-  wallet: { id: number; address: string; rank: number; pnl30d: number; winRate30d: number }
-): Promise<TokenFlowEvent[]> {
-  const events: TokenFlowEvent[] = [];
-  
-  // 1. 加载缓存的仓位状态
-  const cachedPositions = await loadCachedPositions(wallet.id);
-  
-  // 2. 获取最新仓位
-  const currentPositions = await fetchUserPositions(wallet.address);
-  
-  // 3. 收集所有 symbol
-  const allSymbols = new Set<string>();
-  cachedPositions.forEach((_, symbol) => allSymbols.add(symbol));
-  currentPositions.forEach((_, symbol) => allSymbols.add(symbol));
-  
-  // 4. 比较每个 symbol 的状态变化
-  for (const symbol of allSymbols) {
-    const oldState = cachedPositions.get(symbol) || null;
-    const newState = currentPositions.get(symbol) || null;
-    
-    // 设置 walletId
-    if (newState) {
-      newState.walletId = wallet.id;
-    }
-    
-    const action = detectAction(oldState, newState);
-    
-    if (action) {
-      const oldSize = oldState?.size || 0;
-      const newSize = newState?.size || 0;
-      const sizeChange = Math.abs(newSize - oldSize);
-      
-      // 获取当前价格来计算名义价值变化
-      const currentPrice = newState?.entryPrice || oldState?.entryPrice || await fetchCurrentPrice(symbol);
-      const sizeChangeUsd = sizeChange * currentPrice;
-      
-      const event: TokenFlowEvent = {
-        symbol,
-        walletId: wallet.id,
-        address: wallet.address,
-        action,
-        sizeChange,
-        sizeChangeUsd,
-        newSize,
-        newNotionalUsd: newState?.notionalUsd || 0,
-        newSide: newState?.side || 'flat',
-        fillPrice: currentPrice,
-        entryPrice: newState?.entryPrice || 0,
-        leverage: newState?.leverage || 1,
-        traderRank: wallet.rank,
-        pnl30d: wallet.pnl30d,
-        winRate30d: wallet.winRate30d,
-      };
-      
-      events.push(event);
-      
-      // 写入数据库
-      await insertFlowEvent(event);
-      
-      console.log(`📊 [${wallet.address.slice(0, 8)}...] ${action} ${symbol}: ${sizeChangeUsd.toFixed(0)} USD`);
-    }
-    
-    // 更新缓存
-    await updateCachedPosition(wallet.id, newState, symbol);
-  }
-  
-  return events;
-}
-
-/**
- * 获取 Top N 聪明钱钱包
- */
-async function getTopWallets(topN: number = 500): Promise<Array<{ id: number; address: string; rank: number; pnl30d: number; winRate30d: number }>> {
   const result = await db.query(`
     SELECT 
-      w.id,
+      w.id as wallet_id,
       w.address,
       ROW_NUMBER() OVER (ORDER BY m.pnl_30d DESC NULLS LAST) as rank,
       COALESCE(m.pnl_30d, 0)::float as pnl_30d,
@@ -375,78 +123,471 @@ async function getTopWallets(topN: number = 500): Promise<Array<{ id: number; ad
     LIMIT $1
   `, [topN]);
   
-  return result.rows.map(row => ({
-    id: row.id,
-    address: row.address,
-    rank: parseInt(row.rank),
-    pnl30d: row.pnl_30d,
-    winRate30d: row.win_rate_30d,
-  }));
-}
-
-/**
- * 运行一次仓位状态扫描
- */
-export async function runPositionScan(topN: number = 500): Promise<TokenFlowEvent[]> {
-  console.log(`\n🔄 Starting position scan for Top ${topN} wallets...`);
-  const startTime = Date.now();
-  
-  const wallets = await getTopWallets(topN);
-  console.log(`📋 Found ${wallets.length} wallets to scan`);
-  
-  const allEvents: TokenFlowEvent[] = [];
-  
-  // 分批处理，每批 10 个，避免 API 限制
-  const batchSize = 10;
-  for (let i = 0; i < wallets.length; i += batchSize) {
-    const batch = wallets.slice(i, i + batchSize);
-    
-    // 并行处理这一批
-    const batchResults = await Promise.all(
-      batch.map(wallet => processWallet(wallet).catch(err => {
-        console.error(`Error processing wallet ${wallet.address}:`, err);
-        return [];
-      }))
-    );
-    
-    for (const events of batchResults) {
-      allEvents.push(...events);
-    }
-    
-    // 批次间休息，避免 API 限制
-    if (i + batchSize < wallets.length) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-    
-    // 进度日志
-    const progress = Math.min(100, Math.round((i + batchSize) / wallets.length * 100));
-    process.stdout.write(`\r📊 Progress: ${progress}% (${Math.min(i + batchSize, wallets.length)}/${wallets.length})`);
+  smartSet.clear();
+  for (const row of result.rows) {
+    smartSet.set(row.address.toLowerCase(), {
+      walletId: row.wallet_id,
+      rank: parseInt(row.rank),
+      pnl30d: row.pnl_30d,
+      winRate30d: row.win_rate_30d,
+    });
   }
   
-  const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-  console.log(`\n✅ Position scan completed in ${duration}s, found ${allEvents.length} events`);
-  
-  return allEvents;
+  console.log(`✅ Loaded ${smartSet.size} smart traders`);
 }
 
 /**
- * 启动 Position State Engine（持续运行）
+ * 定期刷新 Smart Set（每小时）
  */
-export async function startPositionEngine(intervalMs: number = 30000, topN: number = 500): Promise<void> {
-  console.log(`\n🚀 Starting Position State Engine`);
-  console.log(`   Interval: ${intervalMs / 1000}s`);
-  console.log(`   Top N: ${topN}`);
-  
-  // 首次运行
-  await runPositionScan(topN);
-  
-  // 定时运行
+function startSmartSetRefresh(): void {
   setInterval(async () => {
     try {
-      await runPositionScan(topN);
+      await loadSmartSet(500);
     } catch (error) {
-      console.error('Error in position scan:', error);
+      console.error('Error refreshing smart set:', error);
     }
-  }, intervalMs);
+  }, 60 * 60 * 1000); // 每小时刷新
 }
 
+// ===== Position State Engine =====
+
+function getPositionKey(address: string, coin: string): string {
+  return `${address.toLowerCase()}:${coin}`;
+}
+
+function getPositionState(address: string, coin: string): PositionState {
+  const key = getPositionKey(address, coin);
+  if (!positionMap.has(key)) {
+    positionMap.set(key, {
+      szi: 0,
+      avgEntryPx: 0,
+      realizedPnl: 0,
+      lastTradeTs: 0,
+    });
+  }
+  return positionMap.get(key)!;
+}
+
+/**
+ * 应用一笔成交到仓位状态
+ */
+function applyFill(params: {
+  user: string;
+  coin: string;
+  side: 'B' | 'A';
+  price: number;
+  size: number;
+  time: number;
+}): TokenFlowEvent | null {
+  const { user, coin, side, price, size, time } = params;
+  const traderMeta = smartSet.get(user.toLowerCase());
+  if (!traderMeta) return null;
+  
+  const state = getPositionState(user, coin);
+  const oldSzi = state.szi;
+  const oldSide = oldSzi > 0.0001 ? 'long' : oldSzi < -0.0001 ? 'short' : 'flat';
+  
+  // 计算仓位变化
+  // Buy (B) = 增加多头 / 减少空头
+  // Sell (A) = 减少多头 / 增加空头
+  const delta = side === 'B' ? size : -size;
+  const newSzi = oldSzi + delta;
+  const newSide = newSzi > 0.0001 ? 'long' : newSzi < -0.0001 ? 'short' : 'flat';
+  
+  // 判断动作类型
+  let action: ActionType | null = null;
+  
+  // 新开仓
+  if (oldSide === 'flat' && newSide === 'long') {
+    action = 'open_long';
+  } else if (oldSide === 'flat' && newSide === 'short') {
+    action = 'open_short';
+  }
+  // 平仓
+  else if (oldSide === 'long' && newSide === 'flat') {
+    action = 'close_long';
+  } else if (oldSide === 'short' && newSide === 'flat') {
+    action = 'close_short';
+  }
+  // 反手
+  else if (oldSide === 'long' && newSide === 'short') {
+    action = 'flip_long_to_short';
+  } else if (oldSide === 'short' && newSide === 'long') {
+    action = 'flip_short_to_long';
+  }
+  // 加仓
+  else if (oldSide === 'long' && newSide === 'long' && Math.abs(newSzi) > Math.abs(oldSzi)) {
+    action = 'add_long';
+  } else if (oldSide === 'short' && newSide === 'short' && Math.abs(newSzi) > Math.abs(oldSzi)) {
+    action = 'add_short';
+  }
+  // 减仓
+  else if (oldSide === 'long' && newSide === 'long' && Math.abs(newSzi) < Math.abs(oldSzi)) {
+    action = 'reduce_long';
+  } else if (oldSide === 'short' && newSide === 'short' && Math.abs(newSzi) < Math.abs(oldSzi)) {
+    action = 'reduce_short';
+  }
+  
+  // 计算已实现 PnL（简化逻辑）
+  let realizedPnl = 0;
+  if ((oldSide === 'long' && side === 'A') || (oldSide === 'short' && side === 'B')) {
+    // 平仓方向
+    const closedSize = Math.min(Math.abs(oldSzi), size);
+    if (oldSide === 'long') {
+      realizedPnl = closedSize * (price - state.avgEntryPx);
+    } else {
+      realizedPnl = closedSize * (state.avgEntryPx - price);
+    }
+  }
+  
+  // 更新平均入场价格
+  if (newSide === 'flat') {
+    state.avgEntryPx = 0;
+  } else if (oldSide === 'flat' || (oldSide !== newSide)) {
+    // 新开仓或反手，使用当前价格
+    state.avgEntryPx = price;
+  } else if (Math.abs(newSzi) > Math.abs(oldSzi)) {
+    // 加仓，计算加权平均
+    const oldValue = Math.abs(oldSzi) * state.avgEntryPx;
+    const newValue = size * price;
+    state.avgEntryPx = (oldValue + newValue) / Math.abs(newSzi);
+  }
+  // 减仓不改变均价
+  
+  // 更新状态
+  state.szi = newSzi;
+  state.realizedPnl += realizedPnl;
+  state.lastTradeTs = time;
+  
+  // 如果没有有意义的动作，返回 null
+  if (!action) return null;
+  
+  // 获取当前价格计算 USD 价值
+  const currentPrice = priceMap.get(coin) || price;
+  const sizeUsd = size * currentPrice;
+  const newPositionUsd = Math.abs(newSzi) * currentPrice;
+  
+  // 创建事件
+  const event: TokenFlowEvent = {
+    symbol: coin,
+    address: user,
+    walletId: traderMeta.walletId,
+    action,
+    side,
+    price,
+    size,
+    sizeUsd,
+    newPosition: Math.abs(newSzi),
+    newPositionUsd,
+    newSide,
+    avgEntryPx: state.avgEntryPx,
+    traderRank: traderMeta.rank,
+    pnl30d: traderMeta.pnl30d,
+    winRate30d: traderMeta.winRate30d,
+    timestamp: time,
+  };
+  
+  return event;
+}
+
+/**
+ * 处理一笔交易
+ */
+function handleTrade(trade: WsTrade): void {
+  const { coin, side, px, sz, time, users } = trade;
+  const price = parseFloat(px);
+  const size = parseFloat(sz);
+  const [buyer, seller] = users;
+  
+  // 只关心 smart money
+  const buyerIsSmart = smartSet.has(buyer.toLowerCase());
+  const sellerIsSmart = smartSet.has(seller.toLowerCase());
+  
+  if (!buyerIsSmart && !sellerIsSmart) return;
+  
+  // 处理买方
+  if (buyerIsSmart) {
+    const event = applyFill({ user: buyer, coin, side: 'B', price, size, time });
+    if (event) {
+      onFlowEvent(event);
+    }
+  }
+  
+  // 处理卖方
+  if (sellerIsSmart) {
+    const event = applyFill({ user: seller, coin, side: 'A', price, size, time });
+    if (event) {
+      onFlowEvent(event);
+    }
+  }
+}
+
+/**
+ * 处理事件（存储 + 推送）
+ */
+async function onFlowEvent(event: TokenFlowEvent): Promise<void> {
+  // 打印日志
+  const emoji = event.action.includes('long') ? '🟢' : '🔴';
+  console.log(
+    `${emoji} [${new Date(event.timestamp).toLocaleTimeString()}] ` +
+    `Rank #${event.traderRank} ${event.address.slice(0, 8)}... ` +
+    `${event.action} ${event.symbol} $${event.sizeUsd.toFixed(0)}`
+  );
+  
+  // 写入数据库
+  try {
+    await db.query(`
+      INSERT INTO token_flow_events (
+        ts, symbol, wallet_id, address, action,
+        size_change, size_change_usd, new_size, new_notional_usd, new_side,
+        fill_price, entry_price, leverage,
+        trader_rank, pnl_30d, win_rate_30d
+      ) VALUES (
+        to_timestamp($1 / 1000.0), $2, $3, $4, $5,
+        $6, $7, $8, $9, $10,
+        $11, $12, $13,
+        $14, $15, $16
+      )
+    `, [
+      event.timestamp, event.symbol, event.walletId, event.address, event.action,
+      event.size, event.sizeUsd, event.newPosition, event.newPositionUsd, event.newSide,
+      event.price, event.avgEntryPx, 1,
+      event.traderRank, event.pnl30d, event.winRate30d,
+    ]);
+  } catch (error) {
+    console.error('Error saving flow event:', error);
+  }
+  
+  // 更新 position_states 表
+  try {
+    if (event.newSide === 'flat') {
+      await db.query(`
+        DELETE FROM position_states WHERE wallet_id = $1 AND symbol = $2
+      `, [event.walletId, event.symbol]);
+    } else {
+      await db.query(`
+        INSERT INTO position_states (wallet_id, symbol, side, size, notional_usd, entry_price, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        ON CONFLICT (wallet_id, symbol) DO UPDATE SET
+          side = EXCLUDED.side,
+          size = EXCLUDED.size,
+          notional_usd = EXCLUDED.notional_usd,
+          entry_price = EXCLUDED.entry_price,
+          updated_at = NOW()
+      `, [event.walletId, event.symbol, event.newSide, event.newPosition, event.newPositionUsd, event.avgEntryPx]);
+    }
+  } catch (error) {
+    console.error('Error updating position state:', error);
+  }
+  
+  // 发射事件（供 WebSocket 推送使用）
+  eventEmitter.emit('flow', event);
+}
+
+// ===== WebSocket Connection =====
+
+function connectWebSocket(): void {
+  console.log('🔌 Connecting to Hyperliquid WebSocket...');
+  
+  ws = new WebSocket(HL_WS_URL);
+  
+  ws.on('open', () => {
+    console.log('✅ WebSocket connected');
+    reconnectAttempts = 0;
+    
+    // 订阅 allMids（价格）
+    ws!.send(JSON.stringify({
+      method: 'subscribe',
+      subscription: { type: 'allMids' },
+    }));
+    
+    // 订阅各币种的 trades
+    for (const coin of WATCHED_COINS) {
+      ws!.send(JSON.stringify({
+        method: 'subscribe',
+        subscription: { type: 'trades', coin },
+      }));
+    }
+    
+    console.log(`📡 Subscribed to ${WATCHED_COINS.length} coins`);
+  });
+  
+  ws.on('message', (data: WebSocket.Data) => {
+    try {
+      const msg: WsMessage = JSON.parse(data.toString());
+      
+      if (msg.channel === 'allMids') {
+        // 更新价格
+        const prices = msg.data as Record<string, string>;
+        for (const [coin, price] of Object.entries(prices)) {
+          priceMap.set(coin, parseFloat(price));
+        }
+      } else if (msg.channel === 'trades') {
+        // 处理交易
+        const trades = msg.data as WsTrade[];
+        for (const trade of trades) {
+          handleTrade(trade);
+        }
+      }
+    } catch (error) {
+      // Ignore parse errors for ping/pong
+    }
+  });
+  
+  ws.on('close', () => {
+    console.log('❌ WebSocket disconnected');
+    scheduleReconnect();
+  });
+  
+  ws.on('error', (error) => {
+    console.error('WebSocket error:', error);
+  });
+  
+  // 心跳
+  setInterval(() => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ method: 'ping' }));
+    }
+  }, 30000);
+}
+
+function scheduleReconnect(): void {
+  if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+    console.error('Max reconnect attempts reached, giving up');
+    return;
+  }
+  
+  reconnectAttempts++;
+  const delay = RECONNECT_DELAY * Math.pow(2, reconnectAttempts - 1);
+  console.log(`🔄 Reconnecting in ${delay / 1000}s (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
+  
+  setTimeout(() => {
+    connectWebSocket();
+  }, delay);
+}
+
+// ===== REST API for Initial State =====
+
+/**
+ * 服务启动时，使用 REST API 加载当前仓位
+ */
+async function loadInitialPositions(): Promise<void> {
+  console.log('📊 Loading initial positions for smart traders...');
+  
+  const addresses = Array.from(smartSet.keys()).slice(0, 100); // 先加载 Top 100
+  let loaded = 0;
+  
+  for (const address of addresses) {
+    try {
+      const response = await fetch(`${HL_API_BASE}/info`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'clearinghouseState',
+          user: address,
+        }),
+      });
+      
+      if (!response.ok) continue;
+      
+      const data = await response.json();
+      
+      for (const ap of data.assetPositions || []) {
+        const pos = ap.position;
+        const szi = parseFloat(pos.szi);
+        if (Math.abs(szi) < 0.0001) continue;
+        
+        const key = getPositionKey(address, pos.coin);
+        positionMap.set(key, {
+          szi,
+          avgEntryPx: parseFloat(pos.entryPx),
+          realizedPnl: 0,
+          lastTradeTs: Date.now(),
+        });
+      }
+      
+      loaded++;
+      if (loaded % 10 === 0) {
+        process.stdout.write(`\r📊 Loaded positions: ${loaded}/${addresses.length}`);
+      }
+      
+      // 避免 API 限制
+      await new Promise(resolve => setTimeout(resolve, 100));
+    } catch (error) {
+      // Ignore individual errors
+    }
+  }
+  
+  console.log(`\n✅ Loaded initial positions for ${loaded} traders`);
+}
+
+// ===== Public API =====
+
+/**
+ * 启动 Position Engine
+ */
+export async function startPositionEngine(topN: number = 500): Promise<void> {
+  console.log(`
+╔════════════════════════════════════════════════════╗
+║       Position State Engine (WebSocket Mode)       ║
+╠════════════════════════════════════════════════════╣
+║  Data Source: Hyperliquid Public Trades WS         ║
+║  Watched Coins: ${WATCHED_COINS.length.toString().padEnd(33)}║
+║  Smart Set Size: ${topN.toString().padEnd(32)}║
+╚════════════════════════════════════════════════════╝
+  `);
+  
+  // 1. 加载 Smart Set
+  await loadSmartSet(topN);
+  
+  // 2. 加载初始仓位（可选，用于状态校准）
+  await loadInitialPositions();
+  
+  // 3. 启动 WebSocket
+  connectWebSocket();
+  
+  // 4. 定期刷新 Smart Set
+  startSmartSetRefresh();
+  
+  console.log('\n🚀 Position Engine is running!');
+}
+
+/**
+ * 运行一次位置扫描（用于测试/调试）
+ */
+export async function runPositionScan(topN: number = 500): Promise<TokenFlowEvent[]> {
+  console.log('⚠️  runPositionScan is deprecated, use startPositionEngine instead');
+  await loadSmartSet(topN);
+  return [];
+}
+
+/**
+ * 获取某个币种的当前 Smart Money 持仓统计
+ */
+export function getPositionStats(coin: string): {
+  totalLong: number;
+  totalShort: number;
+  longCount: number;
+  shortCount: number;
+} {
+  let totalLong = 0;
+  let totalShort = 0;
+  let longCount = 0;
+  let shortCount = 0;
+  
+  const price = priceMap.get(coin) || 0;
+  
+  for (const [key, state] of positionMap.entries()) {
+    if (!key.endsWith(`:${coin}`)) continue;
+    
+    if (state.szi > 0.0001) {
+      totalLong += state.szi * price;
+      longCount++;
+    } else if (state.szi < -0.0001) {
+      totalShort += Math.abs(state.szi) * price;
+      shortCount++;
+    }
+  }
+  
+  return { totalLong, totalShort, longCount, shortCount };
+}
