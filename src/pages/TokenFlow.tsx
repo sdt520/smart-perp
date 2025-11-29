@@ -1,0 +1,537 @@
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+
+// Types
+interface TradeEvent {
+  id: string;
+  timestamp: number;
+  address: string;
+  label?: string;
+  smartScore: number;
+  pnl30d: number;
+  winRate30d: number;
+  action: 'open_long' | 'open_short' | 'close_long' | 'close_short' | 'add_long' | 'add_short' | 'reduce_long' | 'reduce_short';
+  coin: string;
+  size: number; // in USD
+  price: number;
+  leverage: number;
+  positionBefore: number; // in USD
+  positionAfter: number; // in USD
+  coinWinRate7d?: number;
+}
+
+interface TokenOverview {
+  netLongShort24h: number; // positive = net long, negative = net short
+  topHoldersDirection: 'long' | 'short' | 'neutral';
+  topHoldersNetPosition: number;
+  volume24h: number;
+  tradesCount24h: number;
+  uniqueTraders24h: number;
+}
+
+// Constants
+const COINS = ['BTC', 'ETH', 'SOL', 'DOGE', 'XRP', 'LINK', 'AVAX', 'ARB', 'OP', 'SUI', 'APT', 'INJ', 'TIA', 'SEI', 'PEPE', 'WIF', 'BONK'];
+const TIME_RANGES = [
+  { value: '1h', label: '1小时' },
+  { value: '4h', label: '4小时' },
+  { value: '24h', label: '24小时' },
+];
+const ADDRESS_POOLS = [
+  { value: 50, label: 'Top 50' },
+  { value: 100, label: 'Top 100' },
+  { value: 500, label: 'Top 500' },
+];
+const MIN_SIZES = [
+  { value: 0, label: '全部' },
+  { value: 10000, label: '≥ $10K' },
+  { value: 50000, label: '≥ $50K' },
+  { value: 100000, label: '≥ $100K' },
+];
+const DIRECTIONS = [
+  { value: 'all', label: '全部' },
+  { value: 'long', label: '只看多单' },
+  { value: 'short', label: '只看空单' },
+  { value: 'reversal', label: '只看反转' },
+];
+
+// API Base
+const API_BASE = import.meta.env.VITE_API_BASE || '/api';
+
+// Helper functions
+function formatNumber(value: number, decimals = 2): string {
+  const absValue = Math.abs(value);
+  if (absValue >= 1000000) {
+    return `${(value / 1000000).toFixed(2)}M`;
+  } else if (absValue >= 1000) {
+    return `${(value / 1000).toFixed(decimals)}K`;
+  }
+  return value.toFixed(decimals);
+}
+
+function formatTime(timestamp: number): string {
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function shortenAddress(address: string): string {
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
+function getActionEmoji(action: TradeEvent['action']): string {
+  switch (action) {
+    case 'open_long':
+    case 'add_long':
+      return '🟢';
+    case 'open_short':
+    case 'add_short':
+      return '🔴';
+    case 'close_long':
+    case 'reduce_long':
+      return '📤';
+    case 'close_short':
+    case 'reduce_short':
+      return '📥';
+    default:
+      return '⚪';
+  }
+}
+
+function getActionText(action: TradeEvent['action']): string {
+  switch (action) {
+    case 'open_long': return '开多';
+    case 'open_short': return '开空';
+    case 'close_long': return '平多';
+    case 'close_short': return '平空';
+    case 'add_long': return '加多';
+    case 'add_short': return '加空';
+    case 'reduce_long': return '减多';
+    case 'reduce_short': return '减空';
+    default: return '交易';
+  }
+}
+
+function getActionColor(action: TradeEvent['action']): string {
+  if (action.includes('long')) {
+    return action.includes('close') || action.includes('reduce') 
+      ? 'text-[var(--color-accent-primary)]/60' 
+      : 'text-[var(--color-accent-primary)]';
+  }
+  return action.includes('close') || action.includes('reduce')
+    ? 'text-[var(--color-accent-negative)]/60'
+    : 'text-[var(--color-accent-negative)]';
+}
+
+// Filter Select Component
+function FilterSelect({ 
+  label, 
+  value, 
+  options, 
+  onChange 
+}: { 
+  label: string; 
+  value: string | number; 
+  options: { value: string | number; label: string }[]; 
+  onChange: (value: string | number) => void;
+}) {
+  return (
+    <div>
+      <label className="block text-xs text-[var(--color-text-muted)] mb-1.5">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-3 py-2 bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent-primary)]/50 cursor-pointer"
+      >
+        {options.map(opt => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+// Coin Selector Component
+function CoinSelector({ 
+  selectedCoin, 
+  onSelect 
+}: { 
+  selectedCoin: string; 
+  onSelect: (coin: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {COINS.map(coin => (
+        <button
+          key={coin}
+          onClick={() => onSelect(coin)}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+            selectedCoin === coin
+              ? 'bg-[var(--color-accent-primary)] text-white'
+              : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]/80'
+          }`}
+        >
+          {coin}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Token Overview Component
+function TokenOverviewCard({ overview, coin }: { overview: TokenOverview | null; coin: string }) {
+  if (!overview) {
+    return (
+      <div className="glass-card rounded-xl p-4 animate-pulse">
+        <div className="h-4 bg-[var(--color-bg-tertiary)] rounded w-1/2 mb-3"></div>
+        <div className="space-y-2">
+          <div className="h-8 bg-[var(--color-bg-tertiary)] rounded"></div>
+          <div className="h-8 bg-[var(--color-bg-tertiary)] rounded"></div>
+        </div>
+      </div>
+    );
+  }
+
+  const isNetLong = overview.netLongShort24h > 0;
+  const directionText = overview.topHoldersDirection === 'long' ? '偏多' : overview.topHoldersDirection === 'short' ? '偏空' : '中性';
+
+  return (
+    <div className="glass-card rounded-xl p-4">
+      <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-3">
+        {coin} 概览 <span className="text-xs text-[var(--color-text-muted)]">(24h)</span>
+      </h3>
+      
+      <div className="space-y-3">
+        {/* Net Position */}
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-[var(--color-text-muted)]">聪明钱净头寸</span>
+          <span className={`text-sm font-mono font-medium ${isNetLong ? 'text-[var(--color-accent-primary)]' : 'text-[var(--color-accent-negative)]'}`}>
+            {isNetLong ? '净多' : '净空'} ${formatNumber(Math.abs(overview.netLongShort24h))}
+          </span>
+        </div>
+
+        {/* Direction */}
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-[var(--color-text-muted)]">Top500 持仓方向</span>
+          <span className={`text-sm font-medium ${
+            overview.topHoldersDirection === 'long' 
+              ? 'text-[var(--color-accent-primary)]' 
+              : overview.topHoldersDirection === 'short'
+                ? 'text-[var(--color-accent-negative)]'
+                : 'text-[var(--color-text-secondary)]'
+          }`}>
+            {directionText} ${formatNumber(Math.abs(overview.topHoldersNetPosition))}
+          </span>
+        </div>
+
+        {/* Volume */}
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-[var(--color-text-muted)]">聪明钱成交量</span>
+          <span className="text-sm font-mono text-[var(--color-text-primary)]">
+            ${formatNumber(overview.volume24h)}
+          </span>
+        </div>
+
+        {/* Trades */}
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-[var(--color-text-muted)]">交易次数 / 人数</span>
+          <span className="text-sm font-mono text-[var(--color-text-primary)]">
+            {overview.tradesCount24h.toLocaleString()} / {overview.uniqueTraders24h}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Trade Event Card Component
+function TradeEventCard({ event }: { event: TradeEvent }) {
+  const positionChange = event.positionAfter - event.positionBefore;
+  const isPositionIncrease = positionChange > 0;
+
+  return (
+    <div className="glass-card rounded-xl p-4 hover:bg-[var(--color-bg-secondary)]/80 transition-colors animate-fade-in">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs text-[var(--color-text-muted)] font-mono">
+          {formatTime(event.timestamp)}
+        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs px-2 py-0.5 rounded bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)]">
+            Score {event.smartScore}
+          </span>
+          <span className={`text-xs ${event.pnl30d >= 0 ? 'text-[var(--color-accent-primary)]' : 'text-[var(--color-accent-negative)]'}`}>
+            30D {event.pnl30d >= 0 ? '+' : ''}{event.pnl30d.toFixed(0)}%
+          </span>
+        </div>
+      </div>
+
+      {/* Trader Info */}
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-lg">🧠</span>
+        <Link 
+          to={`/trader/${event.address}`}
+          className="font-mono text-sm text-[var(--color-accent-blue)] hover:underline"
+        >
+          {event.label || shortenAddress(event.address)}
+        </Link>
+        <span className="text-xs text-[var(--color-text-muted)]">
+          胜率 {event.winRate30d.toFixed(0)}%
+        </span>
+      </div>
+
+      {/* Action */}
+      <div className="flex items-start gap-2 mb-3">
+        <span className="text-lg">{getActionEmoji(event.action)}</span>
+        <div>
+          <span className={`font-medium ${getActionColor(event.action)}`}>
+            {getActionText(event.action)}
+          </span>
+          <span className="text-[var(--color-text-primary)] ml-2">
+            {event.coin}-PERP
+          </span>
+          <span className="text-[var(--color-text-secondary)] ml-2 font-mono">
+            ${formatNumber(event.size)}
+          </span>
+          <span className="text-[var(--color-text-muted)] ml-1">
+            @ ${event.price.toLocaleString()}
+          </span>
+          <span className="text-[var(--color-text-tertiary)] ml-2 text-sm">
+            ({event.leverage.toFixed(1)}x)
+          </span>
+        </div>
+      </div>
+
+      {/* Position Change */}
+      <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] pl-8">
+        <span>当前 {event.coin} 仓位:</span>
+        <span className="font-mono">${formatNumber(Math.abs(event.positionBefore))}</span>
+        <span>→</span>
+        <span className={`font-mono ${isPositionIncrease ? 'text-[var(--color-accent-primary)]' : 'text-[var(--color-accent-negative)]'}`}>
+          ${formatNumber(Math.abs(event.positionAfter))}
+        </span>
+        {event.coinWinRate7d !== undefined && (
+          <span className="ml-2 text-xs">
+            (7D胜率 {event.coinWinRate7d.toFixed(0)}%)
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Generate mock data for demo
+function generateMockEvents(coin: string, count: number): TradeEvent[] {
+  const events: TradeEvent[] = [];
+  const now = Date.now();
+  const actions: TradeEvent['action'][] = ['open_long', 'open_short', 'close_long', 'close_short', 'add_long', 'add_short', 'reduce_long', 'reduce_short'];
+  
+  for (let i = 0; i < count; i++) {
+    const action = actions[Math.floor(Math.random() * actions.length)];
+    const positionBefore = Math.random() * 500000;
+    const size = Math.random() * 200000 + 10000;
+    const isIncrease = action.includes('open') || action.includes('add');
+    
+    events.push({
+      id: `${i}`,
+      timestamp: now - i * (60000 + Math.random() * 300000), // Random intervals
+      address: `0x${Math.random().toString(16).slice(2, 10)}...${Math.random().toString(16).slice(2, 6)}`,
+      label: Math.random() > 0.7 ? `Smart Trader #${Math.floor(Math.random() * 100)}` : undefined,
+      smartScore: Math.floor(Math.random() * 30) + 70,
+      pnl30d: (Math.random() - 0.3) * 100,
+      winRate30d: Math.random() * 30 + 50,
+      action,
+      coin,
+      size,
+      price: coin === 'BTC' ? 95000 + Math.random() * 5000 : coin === 'ETH' ? 3500 + Math.random() * 200 : 100 + Math.random() * 50,
+      leverage: Math.random() * 10 + 1,
+      positionBefore,
+      positionAfter: isIncrease ? positionBefore + size : Math.max(0, positionBefore - size),
+      coinWinRate7d: Math.random() * 40 + 50,
+    });
+  }
+  
+  return events.sort((a, b) => b.timestamp - a.timestamp);
+}
+
+function generateMockOverview(coin: string): TokenOverview {
+  const netLong = (Math.random() - 0.5) * 10000000;
+  return {
+    netLongShort24h: netLong,
+    topHoldersDirection: netLong > 1000000 ? 'long' : netLong < -1000000 ? 'short' : 'neutral',
+    topHoldersNetPosition: Math.abs(netLong) * 2,
+    volume24h: Math.random() * 50000000 + 10000000,
+    tradesCount24h: Math.floor(Math.random() * 5000) + 1000,
+    uniqueTraders24h: Math.floor(Math.random() * 200) + 50,
+  };
+}
+
+// Main Component
+export function TokenFlow() {
+  // Filters
+  const [selectedCoin, setSelectedCoin] = useState('BTC');
+  const [timeRange, setTimeRange] = useState('24h');
+  const [addressPool, setAddressPool] = useState(100);
+  const [minSize, setMinSize] = useState(10000);
+  const [direction, setDirection] = useState('all');
+
+  // Data
+  const [events, setEvents] = useState<TradeEvent[]>([]);
+  const [overview, setOverview] = useState<TokenOverview | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch data
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      // TODO: Replace with real API calls
+      // For now, use mock data
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const mockEvents = generateMockEvents(selectedCoin, 50);
+      const mockOverview = generateMockOverview(selectedCoin);
+      
+      setEvents(mockEvents);
+      setOverview(mockOverview);
+    } catch (error) {
+      console.error('Error fetching token flow data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedCoin, timeRange, addressPool]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Filter events
+  const filteredEvents = useMemo(() => {
+    return events.filter(event => {
+      // Min size filter
+      if (event.size < minSize) return false;
+      
+      // Direction filter
+      if (direction === 'long' && !event.action.includes('long')) return false;
+      if (direction === 'short' && !event.action.includes('short')) return false;
+      if (direction === 'reversal') {
+        // Reversal = closing one direction and opening opposite
+        // Simplified: just show close actions for now
+        if (!event.action.includes('close')) return false;
+      }
+      
+      return true;
+    });
+  }, [events, minSize, direction]);
+
+  return (
+    <div className="min-h-screen">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold text-[var(--color-text-primary)] mb-2">
+          聪明钱交易流
+          <span className="text-[var(--color-text-tertiary)] font-normal ml-2">Smart Money Flow</span>
+        </h1>
+        <p className="text-[var(--color-text-muted)]">
+          实时追踪顶级交易者在各代币上的交易动态
+        </p>
+      </div>
+
+      <div className="flex gap-6">
+        {/* Left Sidebar */}
+        <div className="w-72 flex-shrink-0 space-y-6">
+          {/* Coin Selector */}
+          <div className="glass-card rounded-xl p-4">
+            <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-3">选择代币</h3>
+            <CoinSelector selectedCoin={selectedCoin} onSelect={setSelectedCoin} />
+          </div>
+
+          {/* Filters */}
+          <div className="glass-card rounded-xl p-4 space-y-4">
+            <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-1">筛选条件</h3>
+            
+            <FilterSelect
+              label="时间范围"
+              value={timeRange}
+              options={TIME_RANGES}
+              onChange={(v) => setTimeRange(v as string)}
+            />
+            
+            <FilterSelect
+              label="地址池"
+              value={addressPool}
+              options={ADDRESS_POOLS}
+              onChange={(v) => setAddressPool(Number(v))}
+            />
+            
+            <FilterSelect
+              label="最小名义"
+              value={minSize}
+              options={MIN_SIZES}
+              onChange={(v) => setMinSize(Number(v))}
+            />
+            
+            <FilterSelect
+              label="方向"
+              value={direction}
+              options={DIRECTIONS}
+              onChange={(v) => setDirection(v as string)}
+            />
+          </div>
+
+          {/* Token Overview */}
+          <TokenOverviewCard overview={overview} coin={selectedCoin} />
+        </div>
+
+        {/* Main Content - Event Feed */}
+        <div className="flex-1 min-w-0">
+          <div className="glass-card rounded-xl">
+            {/* Feed Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
+              <div className="flex items-center gap-3">
+                <h3 className="text-sm font-medium text-[var(--color-text-primary)]">
+                  实时交易流
+                </h3>
+                <span className="text-xs text-[var(--color-text-muted)]">
+                  {filteredEvents.length} 条记录
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-[var(--color-accent-primary)] animate-pulse"></div>
+                <span className="text-xs text-[var(--color-text-muted)]">实时更新</span>
+              </div>
+            </div>
+
+            {/* Event List */}
+            <div className="p-4 space-y-3 max-h-[calc(100vh-280px)] overflow-y-auto">
+              {loading ? (
+                // Loading skeleton
+                Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="glass-card rounded-xl p-4 animate-pulse">
+                    <div className="flex justify-between mb-3">
+                      <div className="h-4 w-20 bg-[var(--color-bg-tertiary)] rounded"></div>
+                      <div className="h-4 w-32 bg-[var(--color-bg-tertiary)] rounded"></div>
+                    </div>
+                    <div className="h-4 w-48 bg-[var(--color-bg-tertiary)] rounded mb-3"></div>
+                    <div className="h-4 w-full bg-[var(--color-bg-tertiary)] rounded"></div>
+                  </div>
+                ))
+              ) : filteredEvents.length === 0 ? (
+                <div className="text-center py-12 text-[var(--color-text-muted)]">
+                  <svg className="w-12 h-12 mx-auto mb-4 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 6v6l4 2" />
+                  </svg>
+                  <p>暂无符合条件的交易记录</p>
+                  <p className="text-xs mt-1">尝试调整筛选条件</p>
+                </div>
+              ) : (
+                filteredEvents.map(event => (
+                  <TradeEventCard key={event.id} event={event} />
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+

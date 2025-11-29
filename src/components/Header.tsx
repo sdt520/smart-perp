@@ -83,8 +83,24 @@ export function Header() {
             </div>
           </Link>
 
-          {/* Platform Selector */}
-          <div className="flex items-center gap-1">
+          {/* Navigation */}
+          <nav className="flex items-center gap-1">
+            <Link
+              to="/"
+              className="px-3 py-1.5 rounded-lg text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]/50 transition-all"
+            >
+              排行榜
+            </Link>
+            <Link
+              to="/flow"
+              className="px-3 py-1.5 rounded-lg text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]/50 transition-all flex items-center gap-1"
+            >
+              <span>交易流</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-accent-primary)]/20 text-[var(--color-accent-primary)]">
+                New
+              </span>
+            </Link>
+            <div className="w-px h-4 bg-[var(--color-border)] mx-2"></div>
             {platforms.map((platform) => (
               <button
                 key={platform.id}
@@ -107,7 +123,7 @@ export function Header() {
                 )}
               </button>
             ))}
-          </div>
+          </nav>
 
           {/* Right Side: Last Sync Time + User Menu */}
           <div className="flex items-center gap-4">
