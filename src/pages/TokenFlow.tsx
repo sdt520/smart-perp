@@ -323,14 +323,7 @@ export function TokenFlow() {
     enabled: true,
     onEvent: (event: FlowEvent) => {
       // 转换 WebSocket 事件为 TradeEvent 格式
-      // 计算 positionBefore：
-      // - 加仓(add/open): positionBefore = newPosition - sizeChange
-      // - 减仓(reduce/close): positionBefore = newPosition + sizeChange
-      const isReducing = event.action.includes('reduce') || event.action.includes('close');
-      const positionBefore = isReducing 
-        ? event.newPositionUsd + event.sizeUsd 
-        : Math.max(0, event.newPositionUsd - event.sizeUsd);
-      
+      // 直接使用后端返回的 oldPositionUsd，不再自己计算
       const tradeEvent: TradeEvent = {
         id: event.id,
         timestamp: event.timestamp,
@@ -343,7 +336,7 @@ export function TokenFlow() {
         size: event.sizeUsd,
         price: event.price,
         leverage: 1,
-        positionBefore,
+        positionBefore: event.oldPositionUsd,
         positionAfter: event.newPositionUsd,
       };
       

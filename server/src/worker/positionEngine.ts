@@ -58,6 +58,8 @@ interface TokenFlowEvent {
   price: number;
   size: number;
   sizeUsd: number;
+  oldPosition: number;      // 变化前仓位数量
+  oldPositionUsd: number;   // 变化前仓位价值 USD
   newPosition: number;
   newPositionUsd: number;
   newSide: 'long' | 'short' | 'flat';
@@ -264,8 +266,13 @@ function applyFill(params: {
   
   // 获取当前价格计算 USD 价值
   const currentPrice = priceMap.get(coin) || price;
-  const sizeUsd = size * currentPrice;
+  
+  // oldPositionUsd: 变化前的仓位价值（使用 oldSzi）
+  const oldPositionUsd = Math.abs(oldSzi) * currentPrice;
+  // newPositionUsd: 变化后的仓位价值
   const newPositionUsd = Math.abs(newSzi) * currentPrice;
+  // sizeUsd: 仓位变化量（绝对值差）
+  const sizeUsd = Math.abs(newPositionUsd - oldPositionUsd);
   
   // 创建事件
   const event: TokenFlowEvent = {
@@ -277,6 +284,8 @@ function applyFill(params: {
     price,
     size,
     sizeUsd,
+    oldPosition: Math.abs(oldSzi),
+    oldPositionUsd,
     newPosition: Math.abs(newSzi),
     newPositionUsd,
     newSide,
@@ -339,18 +348,18 @@ async function onFlowEvent(event: TokenFlowEvent): Promise<void> {
     await db.query(`
       INSERT INTO token_flow_events (
         ts, symbol, wallet_id, address, action,
-        size_change, size_change_usd, new_size, new_notional_usd, new_side,
+        size_change, size_change_usd, old_size, old_notional_usd, new_size, new_notional_usd, new_side,
         fill_price, entry_price, leverage,
         trader_rank, pnl_30d, win_rate_30d
       ) VALUES (
         to_timestamp($1 / 1000.0), $2, $3, $4, $5,
-        $6, $7, $8, $9, $10,
-        $11, $12, $13,
-        $14, $15, $16
+        $6, $7, $8, $9, $10, $11, $12,
+        $13, $14, $15,
+        $16, $17, $18
       )
     `, [
       event.timestamp, event.symbol, event.walletId, event.address, event.action,
-      event.size, event.sizeUsd, event.newPosition, event.newPositionUsd, event.newSide,
+      event.size, event.sizeUsd, event.oldPosition, event.oldPositionUsd, event.newPosition, event.newPositionUsd, event.newSide,
       event.price, event.avgEntryPx, 1,
       event.traderRank, event.pnl30d, event.winRate30d,
     ]);

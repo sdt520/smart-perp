@@ -14,6 +14,8 @@ export interface FlowEvent {
   price: number;
   size: number;
   sizeUsd: number;
+  oldPosition: number;
+  oldPositionUsd: number;
   newPosition: number;
   newPositionUsd: number;
   newSide: 'long' | 'short' | 'flat';

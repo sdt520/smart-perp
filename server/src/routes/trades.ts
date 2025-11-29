@@ -36,6 +36,7 @@ router.get('/flow', async (req, res) => {
         e.address,
         e.action,
         e.size_change_usd,
+        e.old_notional_usd,
         e.new_notional_usd,
         e.new_side,
         e.fill_price,
@@ -61,16 +62,8 @@ router.get('/flow', async (req, res) => {
     if (result.rows.length > 0) {
       const events = result.rows.map(row => {
         const sizeChange = parseFloat(row.size_change_usd) || 0;
+        const oldNotional = parseFloat(row.old_notional_usd) || 0;
         const newNotional = parseFloat(row.new_notional_usd) || 0;
-        const action = row.action as string;
-        
-        // 计算 positionBefore：
-        // - 加仓(add/open): positionBefore = newPosition - sizeChange
-        // - 减仓(reduce/close): positionBefore = newPosition + sizeChange
-        const isReducing = action.includes('reduce') || action.includes('close');
-        const positionBefore = isReducing 
-          ? newNotional + sizeChange 
-          : Math.max(0, newNotional - sizeChange);
         
         return {
           id: row.id.toString(),
@@ -85,7 +78,7 @@ router.get('/flow', async (req, res) => {
           size: sizeChange,
           price: parseFloat(row.fill_price) || 0,
           leverage: parseFloat(row.leverage) || 1,
-          positionBefore,
+          positionBefore: oldNotional,
           positionAfter: newNotional,
         };
       });

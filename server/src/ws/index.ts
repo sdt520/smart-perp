@@ -162,6 +162,8 @@ function setupEventListener(): void {
         price: event.price,
         size: event.size,
         sizeUsd: event.sizeUsd,
+        oldPosition: event.oldPosition,
+        oldPositionUsd: event.oldPositionUsd,
         newPosition: event.newPosition,
         newPositionUsd: event.newPositionUsd,
         newSide: event.newSide,

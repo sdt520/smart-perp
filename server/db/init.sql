@@ -200,6 +200,8 @@ CREATE TABLE IF NOT EXISTS token_flow_events (
     -- 仓位变化
     size_change DECIMAL(20, 8) NOT NULL,     -- 本次变动数量（合约数）
     size_change_usd DECIMAL(20, 4) NOT NULL, -- 本次变动名义价值（USD）
+    old_size DECIMAL(20, 8) DEFAULT 0,       -- 变动前总仓位（合约数）
+    old_notional_usd DECIMAL(20, 4) DEFAULT 0,-- 变动前总仓位（USD）
     new_size DECIMAL(20, 8) NOT NULL,        -- 变动后总仓位（合约数）
     new_notional_usd DECIMAL(20, 4) NOT NULL,-- 变动后总仓位（USD）
     new_side VARCHAR(10) NOT NULL,           -- 'long' | 'short' | 'flat'
