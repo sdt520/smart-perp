@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { CoinSelector } from '../components/CoinSelector';
 import { useFlowWebSocket, type FlowEvent } from '../hooks/useFlowWebSocket';
+import { useAuth } from '../contexts/AuthContext';
+import { useFavorites } from '../contexts/FavoritesContext';
 
 // Types
 interface TradeEvent {
@@ -304,12 +306,17 @@ function TradeEventCard({ event }: { event: TradeEvent }) {
 
 // Main Component
 export function TokenFlow() {
+  // Auth & Favorites
+  const { isAuthenticated } = useAuth();
+  const { favorites } = useFavorites();
+  
   // Filters
   const [selectedCoin, setSelectedCoin] = useState<string | null>('BTC');
   const [timeRange, setTimeRange] = useState('24h');
   const [addressPool, setAddressPool] = useState(100);
   const [minSize, setMinSize] = useState(0);
   const [direction, setDirection] = useState('all');
+  const [addressSource, setAddressSource] = useState<'top500' | 'favorites'>('top500');
 
   // Data
   const [events, setEvents] = useState<TradeEvent[]>([]);
@@ -340,9 +347,15 @@ export function TokenFlow() {
         positionAfter: event.newPositionUsd,
       };
       
-      // 过滤：检查是否满足 minSize 和 addressPool 条件
+      // 过滤：检查是否满足 minSize 和 addressPool/favorites 条件
       if (tradeEvent.size < minSize) return;
-      if (tradeEvent.rank > addressPool) return;
+      
+      // 根据数据来源过滤
+      if (addressSource === 'favorites') {
+        if (!favorites.has(tradeEvent.address.toLowerCase())) return;
+      } else {
+        if (tradeEvent.rank > addressPool) return;
+      }
       
       // 添加到事件列表顶部
       setEvents(prev => {
@@ -481,6 +494,40 @@ export function TokenFlow() {
             </div>
           </div>
 
+          {/* Data Source Selection */}
+          <div className="glass-card rounded-xl p-4">
+            <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-3">数据来源</h3>
+            <div className="space-y-2">
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <input
+                  type="radio"
+                  name="addressSource"
+                  checked={addressSource === 'top500'}
+                  onChange={() => setAddressSource('top500')}
+                  className="w-4 h-4 accent-[var(--color-accent-primary)]"
+                />
+                <span className={`text-sm ${addressSource === 'top500' ? 'text-[var(--color-text-primary)]' : 'text-[var(--color-text-muted)]'} group-hover:text-[var(--color-text-primary)] transition-colors`}>
+                  Top 500 聪明钱
+                </span>
+              </label>
+              <label className={`flex items-center gap-3 ${isAuthenticated ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'} group`}>
+                <input
+                  type="radio"
+                  name="addressSource"
+                  checked={addressSource === 'favorites'}
+                  onChange={() => isAuthenticated && setAddressSource('favorites')}
+                  disabled={!isAuthenticated}
+                  className="w-4 h-4 accent-[var(--color-accent-primary)]"
+                />
+                <span className={`text-sm ${addressSource === 'favorites' ? 'text-[var(--color-text-primary)]' : 'text-[var(--color-text-muted)]'} ${isAuthenticated ? 'group-hover:text-[var(--color-text-primary)]' : ''} transition-colors`}>
+                  我的收藏
+                  {!isAuthenticated && <span className="text-xs ml-1">(需登录)</span>}
+                  {isAuthenticated && favorites.size > 0 && <span className="text-xs ml-1 text-[var(--color-text-muted)]">({favorites.size})</span>}
+                </span>
+              </label>
+            </div>
+          </div>
+
           {/* Filters */}
           <div className="glass-card rounded-xl p-4 space-y-4">
             <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-1">筛选条件</h3>
@@ -492,12 +539,14 @@ export function TokenFlow() {
               onChange={(v) => setTimeRange(v as string)}
             />
             
-            <FilterSelect
-              label="地址池"
-              value={addressPool}
-              options={ADDRESS_POOLS}
-              onChange={(v) => setAddressPool(Number(v))}
-            />
+            {addressSource === 'top500' && (
+              <FilterSelect
+                label="地址池"
+                value={addressPool}
+                options={ADDRESS_POOLS}
+                onChange={(v) => setAddressPool(Number(v))}
+              />
+            )}
             
             <FilterSelect
               label="最小仓位"
