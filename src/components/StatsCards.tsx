@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import type { SmartWallet } from '../types';
 
 interface StatsCardsProps {
@@ -32,24 +33,32 @@ export function StatsCards({ wallets }: StatsCardsProps) {
       value: `$${formatLargeNumber(totalPnL30d)}`,
       subtitle: '所有跟踪钱包',
       isPositive: totalPnL30d >= 0,
+      isTopTrader: false,
+      address: null as string | null,
     },
     {
       title: '平均胜率',
       value: `${avgWinRate.toFixed(1)}%`,
       subtitle: '30天平均',
       isPositive: avgWinRate >= 50,
+      isTopTrader: false,
+      address: null as string | null,
     },
     {
       title: 'Top 交易者',
       value: topPerformer ? `$${formatLargeNumber(topPerformer.pnl30d)}` : '-',
       subtitle: topPerformer?.twitter ? `@${topPerformer.twitter}` : topPerformer?.address.slice(0, 10) + '...',
       isPositive: true,
+      isTopTrader: true,
+      address: topPerformer?.address || null,
     },
     {
       title: '30天成交量',
       value: `$${formatLargeNumber(totalVolume)}`,
       subtitle: '所有跟踪钱包',
       isPositive: true,
+      isTopTrader: false,
+      address: null as string | null,
     },
   ];
 
@@ -65,7 +74,7 @@ export function StatsCards({ wallets }: StatsCardsProps) {
             {card.title}
           </p>
           <p className={`text-2xl font-semibold font-mono tabular-nums ${
-            card.title === '30D 总 PnL' 
+            card.title === '30D 总 PnL' || card.isTopTrader
               ? card.isPositive 
                 ? 'text-[var(--color-accent-primary)]' 
                 : 'text-[var(--color-accent-negative)]'
@@ -73,9 +82,18 @@ export function StatsCards({ wallets }: StatsCardsProps) {
           }`}>
             {card.value}
           </p>
-          <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-            {card.subtitle}
-          </p>
+          {card.isTopTrader && card.address ? (
+            <Link 
+              to={`/trader/${card.address}`}
+              className="mt-2 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-accent-blue)] transition-colors cursor-pointer block"
+            >
+              {card.subtitle}
+            </Link>
+          ) : (
+            <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+              {card.subtitle}
+            </p>
+          )}
         </div>
       ))}
     </div>
