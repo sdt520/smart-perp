@@ -1,8 +1,61 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import * as authService from '../services/authService.js';
 
 const router = Router();
+
+// 扩展 Express Request 类型
+declare global {
+  namespace Express {
+    interface Request {
+      user?: {
+        id: number;
+        email?: string;
+        name?: string;
+        walletAddress?: string;
+        authProvider: string;
+      };
+    }
+  }
+}
+
+// 认证中间件
+export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      res.status(401).json({ success: false, error: 'No token provided' });
+      return;
+    }
+
+    const token = authHeader.slice(7);
+    const payload = authService.verifyToken(token);
+    
+    if (!payload) {
+      res.status(401).json({ success: false, error: 'Invalid token' });
+      return;
+    }
+
+    const user = await authService.getUserById(payload.id);
+    if (!user) {
+      res.status(401).json({ success: false, error: 'User not found' });
+      return;
+    }
+
+    req.user = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      walletAddress: user.wallet_address,
+      authProvider: user.auth_provider,
+    };
+
+    next();
+  } catch (error) {
+    console.error('Auth middleware error:', error);
+    res.status(401).json({ success: false, error: 'Authentication failed' });
+  }
+}
 
 // Google OAuth login
 const googleLoginSchema = z.object({

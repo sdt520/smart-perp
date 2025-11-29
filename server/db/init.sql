@@ -158,6 +158,17 @@ CREATE TABLE IF NOT EXISTS user_favorites (
     UNIQUE(user_id, wallet_id)
 );
 
+-- 12. 钱包备注表
+CREATE TABLE IF NOT EXISTS wallet_notes (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    wallet_address VARCHAR(66) NOT NULL,
+    note VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, wallet_address)
+);
+
 -- 索引
 CREATE INDEX IF NOT EXISTS idx_wallets_platform ON wallets(platform_id);
 CREATE INDEX IF NOT EXISTS idx_wallets_active ON wallets(is_active) WHERE is_active = true;
@@ -176,6 +187,8 @@ CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
 CREATE INDEX IF NOT EXISTS idx_users_wallet_address ON users(wallet_address);
 CREATE INDEX IF NOT EXISTS idx_user_favorites_user ON user_favorites(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_favorites_wallet ON user_favorites(wallet_id);
+CREATE INDEX IF NOT EXISTS idx_wallet_notes_user ON wallet_notes(user_id);
+CREATE INDEX IF NOT EXISTS idx_wallet_notes_address ON wallet_notes(wallet_address);
 
 -- 触发器：自动更新 updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { fetchLastSync } from '../services/api';
 import { UserMenu } from './UserMenu';
 import { LoginModal } from './LoginModal';
@@ -68,7 +69,7 @@ export function Header() {
       <div className="max-w-[1400px] mx-auto px-6">
         <div className="flex items-center justify-between h-16">
           {/* Logo & Title */}
-          <div className="flex items-center gap-3">
+          <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <img 
               src="/logo.png" 
               alt="Smart Perp Radar" 
@@ -80,7 +81,7 @@ export function Header() {
                 <span className="text-[var(--color-text-tertiary)] font-normal ml-1">Radar</span>
               </h1>
             </div>
-          </div>
+          </Link>
 
           {/* Platform Selector */}
           <div className="flex items-center gap-1">

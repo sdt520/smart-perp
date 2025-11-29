@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { TraderDetail } from '../../services/api';
+import { useNotes } from '../../contexts/NotesContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface TraderOverviewProps {
   trader: TraderDetail;
@@ -38,6 +40,45 @@ function CheckIcon() {
 
 export function TraderOverview({ trader }: TraderOverviewProps) {
   const [copied, setCopied] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { isAuthenticated } = useAuth();
+  const { getNote, saveNote, deleteNote } = useNotes();
+  
+  // 获取备注名，优先级：用户备注 > 系统标签 > 缩短地址
+  const note = getNote(trader.address);
+  const displayName = note || trader.label || shortenAddress(trader.address);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleStartEdit = () => {
+    setEditValue(note || '');
+    setIsEditing(true);
+  };
+
+  const handleSaveNote = async () => {
+    const trimmedValue = editValue.trim();
+    if (trimmedValue) {
+      await saveNote(trader.address, trimmedValue);
+    } else if (note) {
+      await deleteNote(trader.address);
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSaveNote();
+    } else if (e.key === 'Escape') {
+      setIsEditing(false);
+    }
+  };
 
   const handleCopy = async () => {
     try {
@@ -100,11 +141,51 @@ export function TraderOverview({ trader }: TraderOverviewProps) {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">
-              {trader.label || shortenAddress(trader.address)}
-            </h1>
-            {trader.twitter && (
+          <div className="flex items-center gap-3 mb-2 group">
+            {isEditing ? (
+              <div className="flex items-center gap-2">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  onBlur={handleSaveNote}
+                  placeholder="输入备注名..."
+                  maxLength={50}
+                  className="px-3 py-1.5 bg-[var(--color-bg-primary)] border border-[var(--color-accent-primary)] rounded-lg text-lg font-semibold text-[var(--color-text-primary)] outline-none w-48"
+                />
+                <span className="text-xs text-[var(--color-text-muted)]">回车保存</span>
+              </div>
+            ) : (
+              <>
+                <h1 className={`text-xl font-semibold ${note ? 'text-[var(--color-accent-blue)]' : 'text-[var(--color-text-primary)]'}`}>
+                  {displayName}
+                </h1>
+                {isAuthenticated && (
+                  <button
+                    onClick={handleStartEdit}
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[var(--color-bg-tertiary)] rounded transition-all"
+                    title={note ? '修改备注' : '添加备注'}
+                  >
+                    <svg 
+                      className="w-4 h-4 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" 
+                      />
+                    </svg>
+                  </button>
+                )}
+              </>
+            )}
+            {trader.twitter && !isEditing && (
               <a
                 href={`https://twitter.com/${trader.twitter}`}
                 target="_blank"

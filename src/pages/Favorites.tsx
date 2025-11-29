@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useFavorites } from '../contexts/FavoritesContext';
 import { FavoriteButton } from '../components/FavoriteButton';
+import { WalletAddress } from '../components/WalletAddress';
 
 interface FavoriteWallet {
   id: number;
@@ -28,18 +29,18 @@ function formatPnL(value: number): string {
   return value.toFixed(2);
 }
 
-function shortenAddress(address: string): string {
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
-
 export function Favorites() {
-  const { isAuthenticated, getAuthHeaders } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, getAuthHeaders } = useAuth();
   useFavorites(); // Keep context subscription for updates
   const navigate = useNavigate();
   const [wallets, setWallets] = useState<FavoriteWallet[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // 等待 auth 加载完成
+    if (authLoading) return;
+    
+    // auth 加载完成后，如果未登录则跳转
     if (!isAuthenticated) {
       navigate('/');
       return;
@@ -62,8 +63,22 @@ export function Favorites() {
     };
 
     fetchFavorites();
-  }, [isAuthenticated, navigate, getAuthHeaders]);
+  }, [isAuthenticated, authLoading, navigate, getAuthHeaders]);
 
+  // 等待 auth 加载完成
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="flex items-center gap-3 text-[var(--color-text-tertiary)]">
+          <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <circle cx="12" cy="12" r="10" strokeOpacity="0.2" />
+            <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+          </svg>
+          <span>正在验证登录状态...</span>
+        </div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return null;
@@ -165,12 +180,10 @@ export function Favorites() {
                 >
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-3">
-                      <Link
-                        to={`/trader/${wallet.address}`}
-                        className="font-mono text-sm text-[var(--color-text-primary)] hover:text-[var(--color-accent-primary)] transition-colors"
-                      >
-                        {shortenAddress(wallet.address)}
-                      </Link>
+                      <WalletAddress 
+                        address={wallet.address}
+                        linkTo={`/trader/${wallet.address}`}
+                      />
                       {wallet.label && (
                         <span className="text-xs text-[var(--color-text-muted)] bg-[var(--color-bg-tertiary)] px-2 py-0.5 rounded">
                           {wallet.label}

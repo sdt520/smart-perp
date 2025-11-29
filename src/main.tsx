@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { GoogleOAuthProvider } from '@react-oauth/google'
 import { AuthProvider } from './contexts/AuthContext'
 import { FavoritesProvider } from './contexts/FavoritesContext'
+import { NotesProvider } from './contexts/NotesContext'
 import './index.css'
 import App from './App.tsx'
 
@@ -16,7 +17,9 @@ createRoot(document.getElementById('root')!).render(
       <BrowserRouter>
         <AuthProvider>
           <FavoritesProvider>
-            <App />
+            <NotesProvider>
+              <App />
+            </NotesProvider>
           </FavoritesProvider>
         </AuthProvider>
       </BrowserRouter>

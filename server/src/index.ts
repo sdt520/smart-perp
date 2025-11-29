@@ -6,6 +6,7 @@ import platformsRouter from './routes/platforms.js';
 import coinsRouter from './routes/coins.js';
 import authRouter from './routes/auth.js';
 import favoritesRouter from './routes/favorites.js';
+import { notesRouter } from './routes/notes.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -34,6 +35,7 @@ app.use('/api/platforms', platformsRouter);
 app.use('/api/coins', coinsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/favorites', favoritesRouter);
+app.use('/api/notes', notesRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import type { SmartWallet, SortConfig, SortField } from '../types';
 import { FavoriteButton } from './FavoriteButton';
+import { WalletAddress } from './WalletAddress';
 
 interface WalletTableProps {
   wallets: SmartWallet[];
@@ -38,10 +38,6 @@ function formatNumber(value: number): string {
     return `${(value / 1000).toFixed(1)}K`;
   }
   return value.toString();
-}
-
-function shortenAddress(address: string): string {
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
 function TwitterIcon() {
@@ -220,13 +216,10 @@ export function WalletTable({ wallets, loading, startIndex = 0, sortConfig, onSo
                       {startIndex + index + 1}
                     </div>
                     <div className="flex items-center gap-2">
-                      <Link
-                        to={`/trader/${wallet.address}`}
-                        className="font-mono text-sm text-[var(--color-text-primary)] hover:text-[var(--color-accent-primary)] transition-colors"
-                        title="查看交易者详情"
-                      >
-                        {shortenAddress(wallet.address)}
-                      </Link>
+                      <WalletAddress 
+                        address={wallet.address}
+                        linkTo={`/trader/${wallet.address}`}
+                      />
                       <CopyButton address={wallet.address} />
                       {wallet.twitter && (
                         <a
