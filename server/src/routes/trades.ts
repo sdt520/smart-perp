@@ -49,8 +49,8 @@ router.get('/flow', async (req, res) => {
           t.size,
           t.price,
           t.closed_pnl,
-          t.trade_time,
-          t.start_position,
+          t.traded_at,
+          t.leverage,
           tw.address,
           tw.label,
           tw.rank,
@@ -59,9 +59,9 @@ router.get('/flow', async (req, res) => {
         FROM trades t
         JOIN top_wallets tw ON t.wallet_id = tw.id
         WHERE t.coin = $2
-          AND t.trade_time >= $3
+          AND t.traded_at >= $3
           AND ABS(t.size * t.price) >= $4
-        ORDER BY t.trade_time DESC
+        ORDER BY t.traded_at DESC
         LIMIT $5
       )
       SELECT * FROM coin_trades
@@ -71,24 +71,27 @@ router.get('/flow', async (req, res) => {
     
     // Transform data into trade events
     const events = result.rows.map((row, index) => {
-      const size = Math.abs(parseFloat(row.size) * parseFloat(row.price));
+      const sizeNum = parseFloat(row.size);
+      const priceNum = parseFloat(row.price);
+      const tradeValue = Math.abs(sizeNum * priceNum);
       const isBuy = row.side === 'B';
-      const startPosition = parseFloat(row.start_position || '0');
-      const endPosition = startPosition + (isBuy ? parseFloat(row.size) : -parseFloat(row.size));
+      const closedPnl = parseFloat(row.closed_pnl || '0');
+      const leverage = parseFloat(row.leverage || '1');
       
-      // Determine action type
+      // Determine action type based on side and closedPnl
+      // If closedPnl is non-zero, it's likely a close/reduce position
       let action: string;
-      if (startPosition === 0) {
-        action = isBuy ? 'open_long' : 'open_short';
-      } else if (startPosition > 0) {
-        action = isBuy ? 'add_long' : (Math.abs(endPosition) < 0.0001 ? 'close_long' : 'reduce_long');
+      if (Math.abs(closedPnl) > 0.01) {
+        // Has realized PnL, likely closing position
+        action = isBuy ? 'close_short' : 'close_long';
       } else {
-        action = !isBuy ? 'add_short' : (Math.abs(endPosition) < 0.0001 ? 'close_short' : 'reduce_short');
+        // No realized PnL, likely opening/adding
+        action = isBuy ? 'open_long' : 'open_short';
       }
       
       return {
         id: `${row.id}-${index}`,
-        timestamp: new Date(row.trade_time).getTime(),
+        timestamp: new Date(row.traded_at).getTime(),
         address: row.address,
         label: row.label || undefined,
         rank: parseInt(row.rank),
@@ -96,11 +99,11 @@ router.get('/flow', async (req, res) => {
         winRate30d: parseFloat(row.win_rate_30d) || 0,
         action,
         coin: row.coin,
-        size,
-        price: parseFloat(row.price),
-        leverage: 1, // We don't have leverage data in trades table
-        positionBefore: Math.abs(startPosition * parseFloat(row.price)),
-        positionAfter: Math.abs(endPosition * parseFloat(row.price)),
+        size: tradeValue,
+        price: priceNum,
+        leverage: leverage,
+        positionBefore: tradeValue, // Simplified - we don't have position data
+        positionAfter: tradeValue,
       };
     });
     
@@ -150,7 +153,7 @@ router.get('/overview', async (req, res) => {
         FROM trades t
         JOIN top_wallets tw ON t.wallet_id = tw.id
         WHERE t.coin = $2
-          AND t.trade_time >= $3
+          AND t.traded_at >= $3
       ),
       current_positions AS (
         SELECT 

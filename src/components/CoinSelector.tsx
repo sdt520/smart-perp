@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { Coin } from '../services/api';
 import { fetchCoins } from '../services/api';
 
@@ -12,6 +13,20 @@ export function CoinSelector({ selectedCoin, onSelectCoin }: CoinSelectorProps) 
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+
+  // Update dropdown position when opened
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + 8,
+        left: rect.left,
+        width: Math.max(rect.width, 224), // min 224px (w-56)
+      });
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     fetchCoins()
@@ -24,10 +39,17 @@ export function CoinSelector({ selectedCoin, onSelectCoin }: CoinSelectorProps) 
     c.symbol.toLowerCase().includes(search.toLowerCase())
   );
 
+  const handleSelect = (coin: string | null) => {
+    onSelectCoin(coin);
+    setIsOpen(false);
+    setSearch('');
+  };
+
   return (
-    <div className="relative">
+    <div className="relative flex items-center">
       {/* Trigger Button */}
       <button
+        ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
         className={`
           flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all
@@ -56,17 +78,37 @@ export function CoinSelector({ selectedCoin, onSelectCoin }: CoinSelectorProps) 
         </svg>
       </button>
 
-      {/* Dropdown */}
-      {isOpen && (
+      {/* Clear button when coin is selected */}
+      {selectedCoin && (
+        <button
+          onClick={() => onSelectCoin(null)}
+          className="ml-2 p-2 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] transition-colors"
+          title="清除筛选"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      )}
+
+      {/* Dropdown - rendered via Portal */}
+      {isOpen && createPortal(
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 z-40"
+            className="fixed inset-0 z-[9998]"
             onClick={() => setIsOpen(false)}
           />
           
           {/* Dropdown Panel */}
-          <div className="absolute top-full mt-2 left-0 z-50 w-56 bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-xl shadow-2xl shadow-black/50 overflow-hidden animate-fade-in">
+          <div 
+            className="fixed z-[9999] bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-xl shadow-2xl shadow-black/50 overflow-hidden animate-fade-in"
+            style={{
+              top: dropdownPosition.top,
+              left: dropdownPosition.left,
+              width: dropdownPosition.width,
+            }}
+          >
             {/* Search */}
             <div className="p-2.5 border-b border-[var(--color-border)]">
               <input
@@ -75,6 +117,7 @@ export function CoinSelector({ selectedCoin, onSelectCoin }: CoinSelectorProps) 
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full px-3 py-2 bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] transition-all hover:border-[var(--color-border-hover)]"
+                autoFocus
               />
             </div>
 
@@ -82,11 +125,7 @@ export function CoinSelector({ selectedCoin, onSelectCoin }: CoinSelectorProps) 
             <div className="max-h-60 overflow-y-auto">
               {/* All option */}
               <button
-                onClick={() => {
-                  onSelectCoin(null);
-                  setIsOpen(false);
-                  setSearch('');
-                }}
+                onClick={() => handleSelect(null)}
                 className={`
                   w-full px-4 py-2.5 text-left flex items-center justify-between
                   transition-colors hover:bg-[var(--color-bg-tertiary)]
@@ -117,11 +156,7 @@ export function CoinSelector({ selectedCoin, onSelectCoin }: CoinSelectorProps) 
                 filteredCoins.map((coin) => (
                   <button
                     key={coin.symbol}
-                    onClick={() => {
-                      onSelectCoin(coin.symbol);
-                      setIsOpen(false);
-                      setSearch('');
-                    }}
+                    onClick={() => handleSelect(coin.symbol)}
                     className={`
                       w-full px-4 py-2.5 text-left flex items-center justify-between
                       transition-colors hover:bg-[var(--color-bg-tertiary)]
@@ -146,20 +181,8 @@ export function CoinSelector({ selectedCoin, onSelectCoin }: CoinSelectorProps) 
               )}
             </div>
           </div>
-        </>
-      )}
-
-      {/* Clear button when coin is selected */}
-      {selectedCoin && (
-        <button
-          onClick={() => onSelectCoin(null)}
-          className="ml-2 p-2 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] transition-colors"
-          title="清除筛选"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
-        </button>
+        </>,
+        document.body
       )}
     </div>
   );
