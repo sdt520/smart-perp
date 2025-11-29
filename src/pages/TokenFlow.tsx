@@ -72,6 +72,16 @@ function formatTime(timestamp: number): string {
   return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
+function formatCurrency(value: number): string {
+  const absValue = Math.abs(value);
+  if (absValue >= 1000000) {
+    return `$${(value / 1000000).toFixed(2)}M`;
+  } else if (absValue >= 1000) {
+    return `$${(value / 1000).toFixed(1)}K`;
+  }
+  return `$${value.toFixed(0)}`;
+}
+
 function shortenAddress(address: string): string {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
@@ -232,7 +242,7 @@ function TradeEventCard({ event }: { event: TradeEvent }) {
             Rank #{event.rank}
           </span>
           <span className={`text-xs ${event.pnl30d >= 0 ? 'text-[var(--color-accent-primary)]' : 'text-[var(--color-accent-negative)]'}`}>
-            30D {event.pnl30d >= 0 ? '+' : ''}{event.pnl30d.toFixed(0)}%
+            30D {event.pnl30d >= 0 ? '+' : ''}{formatCurrency(event.pnl30d)}
           </span>
         </div>
       </div>
