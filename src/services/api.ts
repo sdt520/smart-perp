@@ -474,9 +474,7 @@ function calculateSharpeRatio(
       // Daily return = daily PnL / account value at start of day
       dailyReturns.push((dailyPnl / prevValue) * 100); // As percentage
     } else {
-      // Fallback: use the daily PnL from history
-      const dailyPnlFromHistory = history[i].pnl - history[i - 1].cumulativePnl + history[i - 1].pnl;
-      // Skip if we can't calculate properly
+      // Fallback: use cumulative PnL ratio if available
       if (history[i - 1].cumulativePnl !== 0) {
         dailyReturns.push((history[i].pnl / Math.abs(history[i - 1].cumulativePnl)) * 100);
       }
