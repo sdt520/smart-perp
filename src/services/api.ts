@@ -334,6 +334,7 @@ export interface TraderDetail {
   totalVolume: number;
   maxDrawdown: number;
   sharpeRatio: number;
+  isEstimated: boolean; // 是否为估算数据（无真实历史时）
   pnlHistory: {
     date: string;
     pnl: number;
@@ -395,22 +396,31 @@ function generatePnlHistoryFromTotal(totalPnl30d: number): TraderDetail['pnlHist
   const today = new Date();
   
   // Generate daily PnL that sums to approximately totalPnl30d
-  // Use a random walk that trends towards the final value
-  let cumulativePnl = 0;
+  // Use a more realistic pattern with some ups and downs
   const dailyAvg = totalPnl30d / 30;
-  const volatility = Math.abs(dailyAvg) * 2 + 1000; // Add some volatility
+  const volatility = Math.abs(dailyAvg) * 0.5 + 500; // Moderate volatility
   
-  for (let i = 29; i >= 0; i--) {
+  let cumulativePnl = 0;
+  const dailyPnls: number[] = [];
+  
+  // Generate raw daily PnLs
+  for (let i = 0; i < 30; i++) {
+    // Add some randomness with occasional larger swings
+    const isVolatileDay = Math.random() < 0.2; // 20% chance of volatile day
+    const mult = isVolatileDay ? 2 : 1;
+    const noise = (Math.random() - 0.5) * volatility * mult;
+    dailyPnls.push(dailyAvg + noise);
+  }
+  
+  // Adjust to match total
+  const rawTotal = dailyPnls.reduce((a, b) => a + b, 0);
+  const adjustment = (totalPnl30d - rawTotal) / 30;
+  
+  for (let i = 0; i < 30; i++) {
     const date = new Date(today);
-    date.setDate(date.getDate() - i);
+    date.setDate(date.getDate() - (29 - i));
     
-    // Random daily PnL with trend towards final total
-    const remainingDays = i + 1;
-    const remainingPnl = totalPnl30d - cumulativePnl;
-    const expectedDaily = remainingPnl / remainingDays;
-    const randomFactor = (Math.random() - 0.5) * volatility;
-    const dailyPnl = expectedDaily + randomFactor;
-    
+    const dailyPnl = dailyPnls[i] + adjustment;
     cumulativePnl += dailyPnl;
     
     history.push({
@@ -495,19 +505,21 @@ export async function fetchTraderDetail(address: string): Promise<TraderDetail> 
 
     // Try to use backend PnL history (from daily snapshots)
     let pnlHistory: TraderDetail['pnlHistory'];
+    let isEstimated = true; // 默认是估算值
     
     if (pnlHistoryResponse.ok) {
       const historyData: ApiResponse<PnlHistoryApiResponse[]> = await pnlHistoryResponse.json();
       
-      if (historyData.success && historyData.data.length > 0) {
-        // Use real data from backend (daily snapshots)
+      if (historyData.success && historyData.data.length >= 7) {
+        // Use real data from backend (daily snapshots) - need at least 7 days
         pnlHistory = historyData.data.map(d => ({
           date: d.date,
           pnl: d.pnl,
           cumulativePnl: d.cumulativePnl,
         }));
+        isEstimated = false;
       } else {
-        // No snapshots yet (system running < 30 days), generate from total
+        // No snapshots yet (system running < 7 days), generate from total
         pnlHistory = generatePnlHistoryFromTotal(wallet.pnl_30d);
       }
     } else {
@@ -533,6 +545,7 @@ export async function fetchTraderDetail(address: string): Promise<TraderDetail> 
       totalVolume: wallet.total_volume_30d,
       maxDrawdown,
       sharpeRatio,
+      isEstimated,
       pnlHistory,
     };
   } catch (err) {
@@ -643,6 +656,7 @@ function generateMockTraderDetail(address: string): TraderDetail {
     totalVolume: Math.random() * 50000000 + 1000000,
     maxDrawdown: Math.random() * 30 + 5,
     sharpeRatio: Math.random() * 3 - 0.5,
+    isEstimated: true,
     pnlHistory,
   };
 }

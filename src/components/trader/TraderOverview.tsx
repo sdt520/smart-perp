@@ -113,16 +113,18 @@ export function TraderOverview({ trader }: TraderOverviewProps) {
       isPositive: trader.winRate30d >= 50,
     },
     {
-      label: '最大回撤',
+      label: trader.isEstimated ? '最大回撤 *' : '最大回撤',
       value: `${trader.maxDrawdown.toFixed(1)}%`,
       isPositive: false,
       isNeutral: true,
+      isEstimated: trader.isEstimated,
     },
     {
-      label: '夏普比率',
+      label: trader.isEstimated ? '夏普比率 *' : '夏普比率',
       value: trader.sharpeRatio.toFixed(2),
       isPositive: trader.sharpeRatio > 1,
       isNeutral: trader.sharpeRatio >= 0 && trader.sharpeRatio <= 1,
+      isEstimated: trader.isEstimated,
     },
     {
       label: '30D 交易数',
@@ -254,6 +256,13 @@ export function TraderOverview({ trader }: TraderOverviewProps) {
           </div>
         ))}
       </div>
+
+      {/* Estimated data notice */}
+      {trader.isEstimated && (
+        <p className="mt-4 text-xs text-[var(--color-text-muted)]">
+          * 带星号的指标为估算值，系统运行满 30 天后将显示真实数据
+        </p>
+      )}
     </div>
   );
 }
