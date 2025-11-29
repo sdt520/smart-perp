@@ -78,15 +78,17 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
       
-      {/* Modal */}
-      <div className="relative bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl">
+      {/* Modal Container - with padding for scroll */}
+      <div className="min-h-full flex items-center justify-center p-4 py-12">
+        {/* Modal */}
+        <div className="relative bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-xl p-6 w-full max-w-md shadow-2xl">
         {/* Close button */}
         <button
           onClick={onClose}
@@ -157,6 +159,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
         <p className="mt-6 text-xs text-center text-[var(--color-text-muted)]">
           登录即表示您同意我们的服务条款
         </p>
+        </div>
       </div>
     </div>
   );
