@@ -433,24 +433,60 @@ function generatePnlHistoryFromTotal(totalPnl30d: number): TraderDetail['pnlHist
   return history;
 }
 
-// Calculate maximum drawdown from PnL history
-function calculateMaxDrawdown(history: TraderDetail['pnlHistory']): number {
+// Calculate maximum drawdown from account value history
+function calculateMaxDrawdown(
+  history: TraderDetail['pnlHistory'],
+  accountValues?: (number | undefined)[]
+): number {
   if (history.length === 0) return 0;
   
-  let peak = history[0].cumulativePnl;
-  let maxDrawdown = 0;
-  
-  for (const point of history) {
-    if (point.cumulativePnl > peak) {
-      peak = point.cumulativePnl;
-    }
-    const drawdown = peak > 0 ? ((peak - point.cumulativePnl) / peak) * 100 : 0;
-    if (drawdown > maxDrawdown) {
-      maxDrawdown = drawdown;
+  // Use account values if available (more accurate)
+  if (accountValues && accountValues.length > 0) {
+    const validValues = accountValues.filter((v): v is number => v !== undefined && v > 0);
+    if (validValues.length > 0) {
+      let peak = validValues[0];
+      let maxDrawdown = 0;
+      
+      for (const value of validValues) {
+        if (value > peak) {
+          peak = value;
+        }
+        const drawdown = ((peak - value) / peak) * 100;
+        if (drawdown > maxDrawdown) {
+          maxDrawdown = drawdown;
+        }
+      }
+      
+      return Math.min(maxDrawdown, 100);
     }
   }
   
-  return Math.min(maxDrawdown, 100); // Cap at 100%
+  // Fallback: use cumulative PnL (less accurate but better than nothing)
+  // We need to add a base value to simulate account value
+  const values = history.map(h => h.cumulativePnl);
+  const minPnl = Math.min(...values);
+  
+  // Shift values to be positive (simulate starting with some capital)
+  // Assume starting capital is at least the absolute value of max loss + buffer
+  const startingCapital = Math.max(Math.abs(minPnl) * 2, 10000);
+  const accountValueSimulated = values.map(v => startingCapital + v);
+  
+  let peak = accountValueSimulated[0];
+  let maxDrawdown = 0;
+  
+  for (const value of accountValueSimulated) {
+    if (value > peak) {
+      peak = value;
+    }
+    if (peak > 0) {
+      const drawdown = ((peak - value) / peak) * 100;
+      if (drawdown > maxDrawdown) {
+        maxDrawdown = drawdown;
+      }
+    }
+  }
+  
+  return Math.min(maxDrawdown, 100);
 }
 
 // Calculate Sharpe ratio using daily returns (percentage-based)
@@ -558,7 +594,7 @@ export async function fetchTraderDetail(address: string): Promise<TraderDetail> 
     }
 
     // Calculate max drawdown and Sharpe ratio from real data
-    const maxDrawdown = calculateMaxDrawdown(pnlHistory);
+    const maxDrawdown = calculateMaxDrawdown(pnlHistory, accountValues);
     const sharpeRatio = calculateSharpeRatio(pnlHistory, accountValues);
 
     return {
