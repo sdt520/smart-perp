@@ -12,6 +12,7 @@
 import WebSocket from 'ws';
 import { db } from '../db/index.js';
 import { EventEmitter } from 'events';
+import { sendTradeNotification } from '../services/telegramService.js';
 
 // ===== Types =====
 
@@ -391,6 +392,19 @@ async function onFlowEvent(event: TokenFlowEvent): Promise<void> {
   
   // 发射事件（供 WebSocket 推送使用）
   eventEmitter.emit('flow', event);
+  
+  // 发送 Telegram 通知（异步，不阻塞）
+  sendTradeNotification(event.address, {
+    symbol: event.symbol,
+    action: event.action,
+    sizeUsd: event.sizeChangeUsd,
+    price: event.price,
+    newSide: event.newSide,
+    newPositionUsd: event.newPositionUsd,
+    traderRank: event.traderRank,
+  }).catch(err => {
+    console.error('Failed to send Telegram notification:', err);
+  });
 }
 
 // ===== WebSocket Connection =====

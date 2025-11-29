@@ -9,6 +9,7 @@ import authRouter from './routes/auth.js';
 import favoritesRouter from './routes/favorites.js';
 import { notesRouter } from './routes/notes.js';
 import { tradesRouter } from './routes/trades.js';
+import telegramRouter from './routes/telegram.js';
 import { setupWebSocket, getClientCount } from './ws/index.js';
 
 const app = express();
@@ -41,6 +42,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/favorites', favoritesRouter);
 app.use('/api/notes', notesRouter);
 app.use('/api/trades', tradesRouter);
+app.use('/api/telegram', telegramRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

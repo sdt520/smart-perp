@@ -317,3 +317,42 @@ COMMENT ON TABLE position_states IS '仓位状态缓存表（Position State Engi
 COMMENT ON TABLE token_flow_events IS 'Token Flow 事件表（实时交易流）';
 COMMENT ON VIEW v_wallet_leaderboard IS '钱包排行榜视图（前端API用）';
 
+-- 15. 用户 Telegram 绑定表
+CREATE TABLE IF NOT EXISTS user_telegram (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+    telegram_chat_id VARCHAR(50) NOT NULL,       -- Telegram chat ID
+    telegram_username VARCHAR(100),               -- Telegram username (可选)
+    is_verified BOOLEAN DEFAULT false,            -- 是否已验证
+    verification_code VARCHAR(20),                -- 验证码
+    verification_expires_at TIMESTAMP WITH TIME ZONE,
+    notifications_enabled BOOLEAN DEFAULT true,   -- 全局通知开关
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 16. 收藏地址通知设置表
+CREATE TABLE IF NOT EXISTS favorite_notifications (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    wallet_address VARCHAR(66) NOT NULL,
+    notifications_enabled BOOLEAN DEFAULT true,   -- 该地址的通知开关
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, wallet_address)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_telegram_user ON user_telegram(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_telegram_chat ON user_telegram(telegram_chat_id);
+CREATE INDEX IF NOT EXISTS idx_favorite_notifications_user ON favorite_notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_favorite_notifications_address ON favorite_notifications(wallet_address);
+
+CREATE TRIGGER update_user_telegram_updated_at BEFORE UPDATE ON user_telegram
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_favorite_notifications_updated_at BEFORE UPDATE ON favorite_notifications
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+COMMENT ON TABLE user_telegram IS '用户Telegram绑定表';
+COMMENT ON TABLE favorite_notifications IS '收藏地址通知设置表';
+
