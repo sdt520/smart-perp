@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import { createServer } from 'http';
 import walletsRouter from './routes/wallets.js';
 import platformsRouter from './routes/platforms.js';
 import coinsRouter from './routes/coins.js';
@@ -8,8 +9,10 @@ import authRouter from './routes/auth.js';
 import favoritesRouter from './routes/favorites.js';
 import { notesRouter } from './routes/notes.js';
 import { tradesRouter } from './routes/trades.js';
+import { setupWebSocket, getClientCount } from './ws/index.js';
 
 const app = express();
+const server = createServer(app);
 const PORT = process.env.PORT || 3001;
 
 // Middleware
@@ -44,6 +47,7 @@ app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
+    wsClients: getClientCount(),
   });
 });
 
@@ -56,13 +60,17 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   });
 });
 
+// Setup WebSocket
+setupWebSocket(server);
+
 // Start server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`
 🚀 Smart Perp API Server
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🌐 Server:    http://localhost:${PORT}
 📊 API:       http://localhost:${PORT}/api
+🔌 WebSocket: ws://localhost:${PORT}/ws
 ❤️  Health:    http://localhost:${PORT}/api/health
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   `);

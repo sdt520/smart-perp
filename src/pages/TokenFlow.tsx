@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { CoinSelector } from '../components/CoinSelector';
+import { useFlowWebSocket, type FlowEvent } from '../hooks/useFlowWebSocket';
 
 // Types
 interface TradeEvent {
@@ -316,6 +317,41 @@ export function TokenFlow() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // WebSocket for real-time updates
+  const { isConnected, events: wsEvents } = useFlowWebSocket({
+    coin: selectedCoin,
+    enabled: true,
+    onEvent: (event: FlowEvent) => {
+      // 转换 WebSocket 事件为 TradeEvent 格式
+      const tradeEvent: TradeEvent = {
+        id: event.id,
+        timestamp: event.timestamp,
+        address: event.address,
+        rank: event.rank,
+        pnl30d: event.pnl30d,
+        winRate30d: event.winRate30d,
+        action: event.action as TradeEvent['action'],
+        coin: event.symbol,
+        size: event.sizeUsd,
+        price: event.price,
+        leverage: 1,
+        positionBefore: event.newPositionUsd - event.sizeUsd,
+        positionAfter: event.newPositionUsd,
+      };
+      
+      // 过滤：检查是否满足 minSize 和 addressPool 条件
+      if (tradeEvent.size < minSize) return;
+      if (tradeEvent.rank > addressPool) return;
+      
+      // 添加到事件列表顶部
+      setEvents(prev => {
+        // 避免重复
+        if (prev.some(e => e.id === tradeEvent.id)) return prev;
+        return [tradeEvent, ...prev].slice(0, 200);
+      });
+    },
+  });
+
   // Fetch data from API
   const fetchData = useCallback(async () => {
     if (!selectedCoin) {
@@ -379,10 +415,20 @@ export function TokenFlow() {
   useEffect(() => {
     fetchData();
     
-    // Auto refresh every 30 seconds
-    const interval = setInterval(fetchData, 30000);
+    // Auto refresh overview every 60 seconds (events come via WebSocket)
+    const interval = setInterval(() => {
+      // Only refresh overview, not events
+      if (selectedCoin) {
+        fetch(`${API_BASE}/trades/overview?coin=${selectedCoin}&topN=${addressPool}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) setOverview(data.data);
+          })
+          .catch(console.error);
+      }
+    }, 60000);
     return () => clearInterval(interval);
-  }, [fetchData]);
+  }, [fetchData, selectedCoin, addressPool]);
 
   // Filter events by direction
   const filteredEvents = useMemo(() => {
@@ -400,10 +446,21 @@ export function TokenFlow() {
     <div className="min-h-screen">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-[var(--color-text-primary)] mb-2">
-          聪明钱交易流
-          <span className="text-[var(--color-text-tertiary)] font-normal ml-2">Smart Money Flow</span>
-        </h1>
+        <div className="flex items-center gap-3 mb-2">
+          <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">
+            聪明钱交易流
+            <span className="text-[var(--color-text-tertiary)] font-normal ml-2">Smart Money Flow</span>
+          </h1>
+          {/* WebSocket 状态指示器 */}
+          <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs ${
+            isConnected 
+              ? 'bg-[var(--color-accent-primary)]/10 text-[var(--color-accent-primary)]' 
+              : 'bg-[var(--color-accent-negative)]/10 text-[var(--color-accent-negative)]'
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-[var(--color-accent-primary)] animate-pulse' : 'bg-[var(--color-accent-negative)]'}`} />
+            {isConnected ? '实时连接' : '连接中...'}
+          </div>
+        </div>
         <p className="text-[var(--color-text-muted)]">
           实时追踪顶级交易者在各代币上的交易动态
         </p>
