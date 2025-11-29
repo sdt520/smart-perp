@@ -485,10 +485,13 @@ interface PnlHistoryApiResponse {
 // Fetch trader detail by address
 export async function fetchTraderDetail(address: string): Promise<TraderDetail> {
   try {
-    // Fetch wallet data and PnL history from backend in parallel
-    const [walletResponse, pnlHistoryResponse] = await Promise.all([
+    // Import portfolio API
+    const { fetchPortfolioPnlHistory } = await import('./hyperliquid');
+    
+    // Fetch wallet data and portfolio PnL history in parallel
+    const [walletResponse, portfolioPnlHistory] = await Promise.all([
       fetch(`${API_BASE}/wallets/address/${address}`),
-      fetch(`${API_BASE}/wallets/address/${address}/pnl-history?days=30`),
+      fetchPortfolioPnlHistory(address, 'month'), // Use Hyperliquid portfolio API
     ]);
     
     if (!walletResponse.ok) {
@@ -503,31 +506,42 @@ export async function fetchTraderDetail(address: string): Promise<TraderDetail> 
 
     const wallet = walletData.data;
 
-    // Try to use backend PnL history (from daily snapshots)
+    // Convert portfolio PnL history to our format
     let pnlHistory: TraderDetail['pnlHistory'];
-    let isEstimated = true; // 默认是估算值
+    let isEstimated = false;
     
-    if (pnlHistoryResponse.ok) {
-      const historyData: ApiResponse<PnlHistoryApiResponse[]> = await pnlHistoryResponse.json();
+    if (portfolioPnlHistory.length > 0) {
+      // Group by date and calculate cumulative PnL
+      const dailyMap = new Map<string, number>();
       
-      if (historyData.success && historyData.data.length >= 7) {
-        // Use real data from backend (daily snapshots) - need at least 7 days
-        pnlHistory = historyData.data.map(d => ({
-          date: d.date,
-          pnl: d.pnl,
-          cumulativePnl: d.cumulativePnl,
-        }));
-        isEstimated = false;
-      } else {
-        // No snapshots yet (system running < 7 days), generate from total
-        pnlHistory = generatePnlHistoryFromTotal(wallet.pnl_30d);
+      for (const point of portfolioPnlHistory) {
+        const date = new Date(point.timestamp).toISOString().split('T')[0];
+        // Portfolio API returns cumulative PnL, so we take the last value for each day
+        dailyMap.set(date, point.pnl);
       }
+      
+      // Convert to array sorted by date
+      const sortedDates = Array.from(dailyMap.keys()).sort();
+      let prevCumulativePnl = 0;
+      
+      pnlHistory = sortedDates.map(date => {
+        const cumulativePnl = dailyMap.get(date) || 0;
+        const dailyPnl = cumulativePnl - prevCumulativePnl;
+        prevCumulativePnl = cumulativePnl;
+        
+        return {
+          date,
+          pnl: dailyPnl,
+          cumulativePnl,
+        };
+      });
     } else {
-      // Fallback to generated history
+      // Fallback to generated history if portfolio API fails
       pnlHistory = generatePnlHistoryFromTotal(wallet.pnl_30d);
+      isEstimated = true;
     }
 
-    // Calculate max drawdown and Sharpe ratio
+    // Calculate max drawdown and Sharpe ratio from real data
     const maxDrawdown = calculateMaxDrawdown(pnlHistory);
     const sharpeRatio = calculateSharpeRatio(pnlHistory);
 

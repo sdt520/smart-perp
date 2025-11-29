@@ -109,7 +109,71 @@ export async function getMeta(): Promise<HyperliquidMeta> {
   });
 }
 
-// ==================== PnL History Types ====================
+// ==================== Portfolio Types (from Hyperliquid API) ====================
+
+interface PortfolioTimeframeData {
+  accountValueHistory: [number, string][]; // [timestamp, value]
+  pnlHistory: [number, string][]; // [timestamp, pnl]
+  vlm: string; // volume
+}
+
+type PortfolioTimeframe = 'day' | 'week' | 'month' | 'allTime' | 'perpDay' | 'perpWeek' | 'perpMonth' | 'perpAllTime';
+
+type PortfolioResponse = [PortfolioTimeframe, PortfolioTimeframeData][];
+
+export interface PortfolioPnlPoint {
+  timestamp: number;
+  pnl: number;
+}
+
+export interface UserPortfolio {
+  day: PortfolioTimeframeData;
+  week: PortfolioTimeframeData;
+  month: PortfolioTimeframeData;
+  allTime: PortfolioTimeframeData;
+  perpDay: PortfolioTimeframeData;
+  perpWeek: PortfolioTimeframeData;
+  perpMonth: PortfolioTimeframeData;
+  perpAllTime: PortfolioTimeframeData;
+}
+
+// Fetch user's portfolio data (including PnL history)
+export async function fetchUserPortfolio(address: string): Promise<UserPortfolio> {
+  const response = await fetchInfo<PortfolioResponse>({
+    type: 'portfolio',
+    user: address,
+  });
+
+  // Convert array of tuples to object
+  const portfolio: Partial<UserPortfolio> = {};
+  for (const [timeframe, data] of response) {
+    portfolio[timeframe] = data;
+  }
+
+  return portfolio as UserPortfolio;
+}
+
+// Get PnL history from portfolio API (more reliable than fills)
+export async function fetchPortfolioPnlHistory(address: string, timeframe: 'month' | 'allTime' = 'month'): Promise<PortfolioPnlPoint[]> {
+  try {
+    const portfolio = await fetchUserPortfolio(address);
+    const data = portfolio[`perp${timeframe.charAt(0).toUpperCase() + timeframe.slice(1)}` as keyof UserPortfolio] || portfolio[timeframe];
+    
+    if (!data || !data.pnlHistory || data.pnlHistory.length === 0) {
+      return [];
+    }
+
+    return data.pnlHistory.map(([timestamp, pnl]) => ({
+      timestamp,
+      pnl: parseFloat(pnl),
+    }));
+  } catch (err) {
+    console.error('Error fetching portfolio PnL history:', err);
+    return [];
+  }
+}
+
+// ==================== Legacy PnL History Types (from fills) ====================
 
 export interface DailyPnl {
   date: string;
