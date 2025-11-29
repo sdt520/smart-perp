@@ -490,7 +490,7 @@ async function loadInitialPositions(): Promise<void> {
       
       if (!response.ok) continue;
       
-      const data = await response.json();
+      const data = await response.json() as { assetPositions?: Array<{ position: { coin: string; szi: string; entryPx: string } }> };
       
       for (const ap of data.assetPositions || []) {
         const pos = ap.position;
