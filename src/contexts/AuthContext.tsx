@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import type { ReactNode } from 'react';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 
   (import.meta.env.PROD ? '/api' : 'http://localhost:3001/api');
@@ -116,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(USER_KEY);
   }, []);
 
-  const getAuthHeaders = useCallback(() => {
+  const getAuthHeaders = useCallback((): Record<string, string> => {
     if (!token) return {};
     return { Authorization: `Bearer ${token}` };
   }, [token]);

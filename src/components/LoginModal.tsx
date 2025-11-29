@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
+import { GoogleLogin } from '@react-oauth/google';
+import type { CredentialResponse } from '@react-oauth/google';
 import { BrowserProvider } from 'ethers';
 import { useAuth } from '../contexts/AuthContext';
 

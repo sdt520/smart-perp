@@ -64,10 +64,6 @@ export function Favorites() {
     fetchFavorites();
   }, [isAuthenticated, navigate, getAuthHeaders]);
 
-  const handleRemoveFavorite = async (address: string) => {
-    setWallets(prev => prev.filter(w => w.address.toLowerCase() !== address.toLowerCase()));
-    await refreshFavorites();
-  };
 
   if (!isAuthenticated) {
     return null;
