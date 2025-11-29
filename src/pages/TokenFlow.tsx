@@ -403,12 +403,14 @@ export function TokenFlow() {
         {/* Left Sidebar */}
         <div className="w-72 flex-shrink-0 space-y-6">
           {/* Coin Selector */}
-          <div className="glass-card rounded-xl p-4">
+          <div className="glass-card rounded-xl p-4 overflow-visible">
             <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-3">选择代币</h3>
-            <CoinSelector 
-              selectedCoin={selectedCoin} 
-              onSelectCoin={(coin) => setSelectedCoin(coin || 'BTC')} 
-            />
+            <div className="relative z-50">
+              <CoinSelector 
+                selectedCoin={selectedCoin} 
+                onSelectCoin={(coin) => setSelectedCoin(coin || 'BTC')} 
+              />
+            </div>
           </div>
 
           {/* Filters */}
