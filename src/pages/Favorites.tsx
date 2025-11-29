@@ -442,10 +442,6 @@ export function Favorites() {
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
-                <NotificationToggle 
-                  enabled={telegramStatus.notificationsEnabled}
-                  onToggle={handleToggleGlobal}
-                />
                 <button
                   onClick={handleUnbindTelegram}
                   className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-accent-negative)] transition-colors"

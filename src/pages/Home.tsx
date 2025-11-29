@@ -282,23 +282,17 @@ export function Home() {
 
       {/* Footer Info */}
       <footer className="text-center py-10 border-t border-[var(--color-border)]">
-        <p className="text-sm text-[var(--color-text-muted)]">
-          数据来源: Hyperliquid API
-          <span className="mx-2 opacity-40">·</span>
-          {isApiAvailable ? 'Worker 定时更新' : '演示数据'}
-          <span className="mx-2 opacity-40">·</span>
-          <a
-            href="https://hyperliquid.xyz"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
-          >
-            了解更多
-          </a>
-        </p>
-        <p className="text-xs text-[var(--color-text-muted)] mt-3 opacity-60">
-          V0 · 仅供参考，不构成投资建议
-        </p>
+        <a
+          href="https://x.com/hexiecs"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
+        >
+          <span>built by 冷静冷静再冷静</span>
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+          </svg>
+        </a>
       </footer>
     </>
   );
