@@ -8,8 +8,8 @@ import { NotesProvider } from './contexts/NotesContext'
 import './index.css'
 import App from './App.tsx'
 
-// Google OAuth Client ID - replace with your own in production
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'your-google-client-id'
+// Google OAuth Client ID
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '338948172354-jvt6nlufs8roa4lpi10l5vgjiejmtul3.apps.googleusercontent.com'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

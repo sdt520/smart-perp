@@ -13,9 +13,8 @@ interface LoginModalProps {
 const API_BASE = import.meta.env.VITE_API_BASE || 
   (import.meta.env.PROD ? '/api' : 'http://localhost:3001/api');
 
-// 检查是否配置了有效的 Google Client ID
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-const hasValidGoogleClientId = GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.includes('your-google-client-id');
+// Google Client ID 已配置
+const hasValidGoogleClientId = true;
 
 export function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const { loginWithGoogle, loginWithWallet } = useAuth();
