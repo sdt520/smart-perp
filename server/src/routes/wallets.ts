@@ -37,7 +37,7 @@ async function fetchHyperliquidUserStats(address: string): Promise<{
     
     if (!response.ok) return null;
     
-    const portfolioData: [string, PortfolioTimeframeData][] = await response.json();
+    const portfolioData = await response.json() as [string, PortfolioTimeframeData][];
     
     // Extract PnL from each timeframe
     // perpDay = 1D, perpWeek = 7D, perpMonth = 30D
