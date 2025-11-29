@@ -32,13 +32,6 @@ function formatPnL(value: number): string {
   return value.toFixed(2);
 }
 
-function formatNumber(value: number): string {
-  if (value >= 1000) {
-    return `${(value / 1000).toFixed(1)}K`;
-  }
-  return value.toString();
-}
-
 function TwitterIcon() {
   return (
     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">

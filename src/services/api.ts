@@ -241,6 +241,7 @@ export interface CoinWallet {
   win_rate_30d: number;
   trades_count_7d: number;
   trades_count_30d: number;
+  total_volume_7d: number;
   total_volume_30d: number;
   last_trade_at: string | null;
   calculated_at: string | null;
