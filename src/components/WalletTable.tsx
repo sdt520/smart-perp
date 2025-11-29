@@ -6,7 +6,6 @@ import { WalletAddress } from './WalletAddress';
 interface WalletTableProps {
   wallets: SmartWallet[];
   loading?: boolean;
-  startIndex?: number;
   sortConfig?: SortConfig;
   onSort?: (field: SortField) => void;
   onLoginRequired?: () => void;
@@ -117,7 +116,7 @@ function CopyButton({ address }: { address: string }) {
   );
 }
 
-export function WalletTable({ wallets, loading, startIndex = 0, sortConfig, onSort, onLoginRequired }: WalletTableProps) {
+export function WalletTable({ wallets, loading, sortConfig, onSort, onLoginRequired }: WalletTableProps) {
   const [internalSortConfig, setInternalSortConfig] = useState<SortConfig>({
     field: 'pnl30d',
     direction: 'desc',
@@ -199,7 +198,7 @@ export function WalletTable({ wallets, loading, startIndex = 0, sortConfig, onSo
             </tr>
           </thead>
           <tbody>
-            {displayWallets.map((wallet, index) => (
+            {displayWallets.map((wallet) => (
               <tr
                 key={wallet.address}
                 className="table-row-hover border-b border-[var(--color-border)]/50 last:border-b-0"

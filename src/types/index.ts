@@ -1,5 +1,8 @@
 export interface SmartWallet {
+  id?: string;
   address: string;
+  platform?: string;
+  label?: string;
   pnl1d: number;
   pnl7d: number;
   pnl30d: number;
@@ -7,9 +10,12 @@ export interface SmartWallet {
   winRate30d: number;
   trades7d: number;
   trades30d: number;
+  volume7d?: number;
+  volume30d?: number;
   twitter?: string;
-  lastUpdated: Date;
-  rank?: number; // 实际排名
+  lastUpdated?: Date;
+  lastTradeAt?: string;
+  rank?: number; // 实际排名，不在排行榜中时为 undefined
 }
 
 export type SortField = 
