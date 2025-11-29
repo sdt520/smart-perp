@@ -169,6 +169,54 @@ CREATE TABLE IF NOT EXISTS wallet_notes (
     UNIQUE(user_id, wallet_address)
 );
 
+-- 13. 仓位状态表（Position State Engine 缓存）
+CREATE TABLE IF NOT EXISTS position_states (
+    id SERIAL PRIMARY KEY,
+    wallet_id INTEGER NOT NULL REFERENCES wallets(id) ON DELETE CASCADE,
+    symbol VARCHAR(20) NOT NULL,           -- BTC, ETH, SOL 等
+    side VARCHAR(10) NOT NULL DEFAULT 'flat', -- 'long' | 'short' | 'flat'
+    size DECIMAL(20, 8) NOT NULL DEFAULT 0,   -- 合约数量（非名义价值）
+    notional_usd DECIMAL(20, 4) DEFAULT 0,    -- 名义价值（USD）
+    entry_price DECIMAL(20, 8) DEFAULT 0,     -- 入场均价
+    leverage DECIMAL(5, 2) DEFAULT 1,
+    unrealized_pnl DECIMAL(20, 4) DEFAULT 0,
+    last_fill_time TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(wallet_id, symbol)
+);
+
+-- 14. Token Flow 事件表
+CREATE TABLE IF NOT EXISTS token_flow_events (
+    id BIGSERIAL PRIMARY KEY,
+    ts TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    symbol VARCHAR(20) NOT NULL,
+    wallet_id INTEGER NOT NULL REFERENCES wallets(id) ON DELETE CASCADE,
+    address VARCHAR(66) NOT NULL,
+    
+    -- 动作类型
+    action VARCHAR(30) NOT NULL, -- 'open_long' | 'add_long' | 'reduce_long' | 'close_long' | 'open_short' | 'add_short' | 'reduce_short' | 'close_short' | 'flip_long_to_short' | 'flip_short_to_long'
+    
+    -- 仓位变化
+    size_change DECIMAL(20, 8) NOT NULL,     -- 本次变动数量（合约数）
+    size_change_usd DECIMAL(20, 4) NOT NULL, -- 本次变动名义价值（USD）
+    new_size DECIMAL(20, 8) NOT NULL,        -- 变动后总仓位（合约数）
+    new_notional_usd DECIMAL(20, 4) NOT NULL,-- 变动后总仓位（USD）
+    new_side VARCHAR(10) NOT NULL,           -- 'long' | 'short' | 'flat'
+    
+    -- 价格信息
+    fill_price DECIMAL(20, 8) NOT NULL,      -- 本次成交价格
+    entry_price DECIMAL(20, 8) DEFAULT 0,    -- 最新持仓均价
+    leverage DECIMAL(5, 2) DEFAULT 1,
+    
+    -- 交易者统计快照
+    trader_rank INTEGER,                     -- Hyperliquid 排名
+    pnl_30d DECIMAL(20, 4) DEFAULT 0,
+    win_rate_30d DECIMAL(5, 2) DEFAULT 0,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- 索引
 CREATE INDEX IF NOT EXISTS idx_wallets_platform ON wallets(platform_id);
 CREATE INDEX IF NOT EXISTS idx_wallets_active ON wallets(is_active) WHERE is_active = true;
@@ -189,6 +237,13 @@ CREATE INDEX IF NOT EXISTS idx_user_favorites_user ON user_favorites(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_favorites_wallet ON user_favorites(wallet_id);
 CREATE INDEX IF NOT EXISTS idx_wallet_notes_user ON wallet_notes(user_id);
 CREATE INDEX IF NOT EXISTS idx_wallet_notes_address ON wallet_notes(wallet_address);
+CREATE INDEX IF NOT EXISTS idx_position_states_wallet ON position_states(wallet_id);
+CREATE INDEX IF NOT EXISTS idx_position_states_symbol ON position_states(symbol);
+CREATE INDEX IF NOT EXISTS idx_position_states_wallet_symbol ON position_states(wallet_id, symbol);
+CREATE INDEX IF NOT EXISTS idx_token_flow_events_symbol_ts ON token_flow_events(symbol, ts DESC);
+CREATE INDEX IF NOT EXISTS idx_token_flow_events_symbol_size ON token_flow_events(symbol, size_change_usd DESC);
+CREATE INDEX IF NOT EXISTS idx_token_flow_events_wallet ON token_flow_events(wallet_id, ts DESC);
+CREATE INDEX IF NOT EXISTS idx_token_flow_events_ts ON token_flow_events(ts DESC);
 
 -- 触发器：自动更新 updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -254,5 +309,7 @@ COMMENT ON TABLE coins IS '交易币种表';
 COMMENT ON TABLE wallet_coin_metrics IS '钱包-币种指标表（按币种分析）';
 COMMENT ON TABLE users IS '用户表（支持Google和钱包登录）';
 COMMENT ON TABLE user_favorites IS '用户收藏表';
+COMMENT ON TABLE position_states IS '仓位状态缓存表（Position State Engine 维护）';
+COMMENT ON TABLE token_flow_events IS 'Token Flow 事件表（实时交易流）';
 COMMENT ON VIEW v_wallet_leaderboard IS '钱包排行榜视图（前端API用）';
 

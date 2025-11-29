@@ -2,6 +2,7 @@ import 'dotenv/config';
 import cron from 'node-cron';
 import db from '../db/index.js';
 import * as hyperliquid from './hyperliquid.js';
+import { startPositionEngine, runPositionScan } from './positionEngine.js';
 
 const isOnce = process.argv.includes('--once');
 
@@ -129,6 +130,12 @@ async function runAllOnce(): Promise<void> {
   await runMetricsCalculation();
   await runCoinMetricsCalculation();
   await runDailyPnlSnapshots();
+  
+  // Run position scan once
+  console.log('\n' + '='.repeat(50));
+  console.log('🔄 Running Position State Engine Scan');
+  console.log('='.repeat(50));
+  await runPositionScan(500);
 
   console.log('\n✅ All jobs completed. Exiting...');
   process.exit(0);
@@ -153,6 +160,7 @@ function startScheduledWorker(): void {
 ║    → Metrics Calc:  After trades sync              ║
 ║    → Coin Metrics:  After metrics calc             ║
 ║    → PnL Snapshots: After coin metrics             ║
+║  Position Engine:   Every 30 seconds (continuous)  ║
 ╚════════════════════════════════════════════════════╝
   `);
 
@@ -173,7 +181,14 @@ function startScheduledWorker(): void {
   console.log('🚀 Running initial sync...\n');
   runLeaderboardSync()
     .then(() => runTradesSyncWithMetricsAndSnapshots())
-    .then(() => console.log('\n✅ Initial sync complete. Worker is now running on schedule.'));
+    .then(() => {
+      console.log('\n✅ Initial sync complete. Worker is now running on schedule.');
+      
+      // Start Position State Engine (runs every 30 seconds)
+      const positionEngineInterval = parseInt(process.env.POSITION_ENGINE_INTERVAL || '30000');
+      const positionEngineTopN = parseInt(process.env.POSITION_ENGINE_TOP_N || '500');
+      startPositionEngine(positionEngineInterval, positionEngineTopN);
+    });
 }
 
 // Main
