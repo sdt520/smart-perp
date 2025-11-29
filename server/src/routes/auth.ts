@@ -44,9 +44,9 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
 
     req.user = {
       id: user.id,
-      email: user.email,
-      name: user.name,
-      walletAddress: user.wallet_address,
+      email: user.email ?? undefined,
+      name: user.name ?? undefined,
+      walletAddress: user.wallet_address ?? undefined,
       authProvider: user.auth_provider as 'google' | 'wallet',
     };
 
