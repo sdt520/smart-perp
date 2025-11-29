@@ -4,6 +4,7 @@ import { GoogleLogin } from '@react-oauth/google';
 import type { CredentialResponse } from '@react-oauth/google';
 import { BrowserProvider } from 'ethers';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ const API_BASE = import.meta.env.VITE_API_BASE ||
 const hasValidGoogleClientId = true;
 
 export function LoginModal({ isOpen, onClose }: LoginModalProps) {
+  const { t } = useLanguage();
   const { loginWithGoogle, loginWithWallet } = useAuth();
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,9 +107,9 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
           {/* Header */}
           <div className="text-center mb-6">
-            <h2 className="text-xl font-semibold text-[var(--color-text-primary)]">登录</h2>
+            <h2 className="text-xl font-semibold text-[var(--color-text-primary)]">{t('login.title')}</h2>
             <p className="text-sm text-[var(--color-text-muted)] mt-1">
-              登录后可收藏关注的钱包地址
+              {t('login.subtitle')}
             </p>
           </div>
 
@@ -138,7 +140,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 {/* Divider */}
                 <div className="flex items-center gap-3">
                   <div className="flex-1 h-px bg-[var(--color-border)]" />
-                  <span className="text-xs text-[var(--color-text-muted)]">或</span>
+                  <span className="text-xs text-[var(--color-text-muted)]">{t('login.or')}</span>
                   <div className="flex-1 h-px bg-[var(--color-border)]" />
                 </div>
               </>
@@ -158,14 +160,14 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 </svg>
               )}
               <span className="text-sm font-medium text-[var(--color-text-primary)]">
-                {isConnecting ? '连接中...' : '使用钱包登录'}
+                {isConnecting ? t('login.connecting') : t('login.withWallet')}
               </span>
             </button>
           </div>
 
           {/* Footer */}
           <p className="mt-6 text-xs text-center text-[var(--color-text-muted)]">
-            登录即表示您同意我们的服务条款
+            {t('login.terms')}
           </p>
         </div>
       </div>

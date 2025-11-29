@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom';
 import type { SmartWallet } from '../types';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface StatsCardsProps {
   wallets: SmartWallet[];
 }
 
 export function StatsCards({ wallets }: StatsCardsProps) {
+  const { t } = useLanguage();
   // Calculate aggregate stats
   const totalPnL30d = wallets.reduce((sum, w) => sum + w.pnl30d, 0);
   const avgWinRate = wallets.length > 0
@@ -29,35 +31,39 @@ export function StatsCards({ wallets }: StatsCardsProps) {
 
   const cards = [
     {
-      title: '30D 总 PnL',
+      title: t('stats.totalPnl30d'),
       value: `$${formatLargeNumber(totalPnL30d)}`,
-      subtitle: '所有跟踪钱包',
+      subtitle: t('stats.allTracked'),
       isPositive: totalPnL30d >= 0,
       isTopTrader: false,
+      isPnlCard: true,
       address: null as string | null,
     },
     {
-      title: '平均胜率',
+      title: t('stats.avgWinRate'),
       value: `${avgWinRate.toFixed(1)}%`,
-      subtitle: '30天平均',
+      subtitle: t('stats.avg30d'),
       isPositive: avgWinRate >= 50,
       isTopTrader: false,
+      isPnlCard: false,
       address: null as string | null,
     },
     {
-      title: 'Top 交易者',
+      title: t('stats.topTrader'),
       value: topPerformer ? `$${formatLargeNumber(topPerformer.pnl30d)}` : '-',
       subtitle: topPerformer?.twitter ? `@${topPerformer.twitter}` : topPerformer?.address.slice(0, 10) + '...',
       isPositive: true,
       isTopTrader: true,
+      isPnlCard: false,
       address: topPerformer?.address || null,
     },
     {
-      title: '30天成交量',
+      title: t('stats.volume30d'),
       value: `$${formatLargeNumber(totalVolume)}`,
-      subtitle: '所有跟踪钱包',
+      subtitle: t('stats.allTracked'),
       isPositive: true,
       isTopTrader: false,
+      isPnlCard: false,
       address: null as string | null,
     },
   ];
@@ -74,7 +80,7 @@ export function StatsCards({ wallets }: StatsCardsProps) {
             {card.title}
           </p>
           <p className={`text-2xl font-semibold font-mono tabular-nums ${
-            card.title === '30D 总 PnL' || card.isTopTrader
+            card.isPnlCard || card.isTopTrader
               ? card.isPositive 
                 ? 'text-[var(--color-accent-primary)]' 
                 : 'text-[var(--color-accent-negative)]'

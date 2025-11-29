@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { SmartWallet, SortConfig, SortField } from '../types';
 import { FavoriteButton } from './FavoriteButton';
 import { WalletAddress } from './WalletAddress';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface WalletTableProps {
   wallets: SmartWallet[];
@@ -10,17 +11,6 @@ interface WalletTableProps {
   onSort?: (field: SortField) => void;
   onLoginRequired?: () => void;
 }
-
-const columns: { key: SortField | 'address'; label: string; align: 'left' | 'right' }[] = [
-  { key: 'address', label: '钱包地址', align: 'left' },
-  { key: 'pnl1d', label: '1D PnL', align: 'right' },
-  { key: 'pnl7d', label: '7D PnL', align: 'right' },
-  { key: 'pnl30d', label: '30D PnL', align: 'right' },
-  { key: 'winRate7d', label: '7D 胜率', align: 'right' },
-  { key: 'winRate30d', label: '30D 胜率', align: 'right' },
-  { key: 'volume7d', label: '7D 成交量', align: 'right' },
-  { key: 'volume30d', label: '30D 成交量', align: 'right' },
-];
 
 function formatPnL(value: number): string {
   const absValue = Math.abs(value);
@@ -112,12 +102,24 @@ function CopyButton({ address }: { address: string }) {
 }
 
 export function WalletTable({ wallets, loading, sortConfig, onSort, onLoginRequired }: WalletTableProps) {
+  const { t } = useLanguage();
   const [internalSortConfig, setInternalSortConfig] = useState<SortConfig>({
     field: 'pnl30d',
     direction: 'desc',
   });
 
   const currentSortConfig = sortConfig || internalSortConfig;
+
+  const columns: { key: SortField | 'address'; label: string; align: 'left' | 'right' }[] = [
+    { key: 'address', label: t('table.trader'), align: 'left' },
+    { key: 'pnl1d', label: t('detail.pnl1d'), align: 'right' },
+    { key: 'pnl7d', label: t('table.pnl7d'), align: 'right' },
+    { key: 'pnl30d', label: t('table.pnl30d'), align: 'right' },
+    { key: 'winRate7d', label: '7D ' + t('table.winRate'), align: 'right' },
+    { key: 'winRate30d', label: '30D ' + t('table.winRate'), align: 'right' },
+    { key: 'volume7d', label: t('table.volume7d'), align: 'right' },
+    { key: 'volume30d', label: t('table.volume30d'), align: 'right' },
+  ];
 
   const displayWallets = useMemo(() => {
     if (onSort) return wallets;

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { WalletTable, StatsCards, CoinSelector, CoinWalletTable, Pagination } from '../components';
 import { useWallets } from '../hooks/useWallets';
 import { fetchCoinWallets, fetchCoinStats, type CoinWallet, type CoinStats } from '../services/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 function formatLargeNumber(num: number): string {
   const absValue = Math.abs(num);
@@ -16,6 +17,7 @@ function formatLargeNumber(num: number): string {
 }
 
 export function Home() {
+  const { t } = useLanguage();
   const { 
     wallets, 
     loading, 
@@ -165,7 +167,7 @@ export function Home() {
         <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
           <div className="flex items-center gap-4">
             <h3 className="text-lg font-medium text-[var(--color-text-primary)]">
-              {selectedCoin ? `${selectedCoin} 交易者` : 'Top 聪明钱'}
+              {selectedCoin ? `${selectedCoin} ${t('home.traders')}` : t('home.topSmartMoney')}
               {!selectedCoin && total > 0 && (
                 <span className="ml-2 text-sm font-normal text-[var(--color-text-muted)]">
                   {total.toLocaleString()} 个
@@ -199,7 +201,7 @@ export function Home() {
                 </svg>
                 <input
                   type="text"
-                  placeholder="搜索任意钱包地址..."
+                  placeholder={t('home.searchPlaceholder')}
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   className="pl-10 pr-4 py-2.5 w-60 bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] rounded-xl text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] transition-all hover:border-[var(--color-border-hover)]"
@@ -288,7 +290,7 @@ export function Home() {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
         >
-          <span>Built by 冷静冷静再冷静</span>
+          <span>{t('footer.builtBy')} 冷静冷静再冷静</span>
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
             <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
           </svg>

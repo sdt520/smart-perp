@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { UserMenu } from './UserMenu';
 import { LoginModal } from './LoginModal';
+import { LanguageSwitcher } from './LanguageSwitcher';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface Platform {
   id: string;
@@ -16,6 +18,7 @@ const platforms: Platform[] = [
 ];
 
 export function Header() {
+  const { t } = useLanguage();
   const [selectedPlatform, setSelectedPlatform] = useState('hyperliquid');
   const [showLoginModal, setShowLoginModal] = useState(false);
 
@@ -31,7 +34,7 @@ export function Header() {
               className="h-8 w-8 object-contain"
             />
             <h1 className="text-base font-semibold tracking-tight text-[var(--color-text-primary)]">
-              Smart Perp
+              {t('header.title')}
             </h1>
           </Link>
 
@@ -41,13 +44,13 @@ export function Header() {
               to="/"
               className="px-3 py-1.5 rounded-lg text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]/50 transition-all"
             >
-              排行榜
+              {t('header.walletList')}
             </Link>
             <Link
               to="/flow"
               className="px-3 py-1.5 rounded-lg text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]/50 transition-all"
             >
-              交易流
+              {t('header.tradeFlow')}
             </Link>
             <div className="w-px h-4 bg-[var(--color-border)] mx-2"></div>
             {platforms.map((platform) => (
@@ -74,8 +77,11 @@ export function Header() {
             ))}
           </nav>
 
-          {/* Right Side: User Menu */}
-          <UserMenu onLoginClick={() => setShowLoginModal(true)} />
+          {/* Right Side: Language Switcher & User Menu */}
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher />
+            <UserMenu onLoginClick={() => setShowLoginModal(true)} />
+          </div>
         </div>
       </div>
 
