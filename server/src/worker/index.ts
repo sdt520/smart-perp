@@ -173,14 +173,19 @@ function startScheduledWorker(): void {
 
   // Run initial sync on startup
   console.log('🚀 Running initial sync...\n');
+  
+  // Start Position Engine immediately after leaderboard sync (don't wait for trades)
   runLeaderboardSync()
-    .then(() => runTradesSyncWithMetricsAndSnapshots())
     .then(async () => {
-      console.log('\n✅ Initial sync complete. Worker is now running on schedule.');
-      
       // Start Position State Engine (WebSocket-based, real-time)
       const positionEngineTopN = parseInt(process.env.POSITION_ENGINE_TOP_N || '500');
       await startPositionEngine(positionEngineTopN);
+      
+      console.log('\n✅ Position Engine started. Continuing with trades sync in background...');
+    })
+    .then(() => runTradesSyncWithMetricsAndSnapshots())
+    .then(() => {
+      console.log('\n✅ Initial sync complete. Worker is now running on schedule.');
     });
 }
 

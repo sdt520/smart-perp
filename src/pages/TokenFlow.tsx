@@ -531,8 +531,17 @@ export function TokenFlow() {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-[var(--color-accent-primary)] animate-pulse"></div>
-                <span className="text-xs text-[var(--color-text-muted)]">每30秒刷新</span>
+                {isConnected ? (
+                  <>
+                    <div className="w-2 h-2 rounded-full bg-[var(--color-accent-primary)] animate-pulse"></div>
+                    <span className="text-xs text-[var(--color-text-muted)]">实时推送中</span>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-2 h-2 rounded-full bg-[var(--color-accent-negative)]"></div>
+                    <span className="text-xs text-[var(--color-text-muted)]">连接中...</span>
+                  </>
+                )}
               </div>
             </div>
 
