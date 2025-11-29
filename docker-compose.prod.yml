@@ -32,6 +32,8 @@ services:
       NODE_ENV: production
       PORT: 3001
       DATABASE_URL: postgres://${DB_USER:-smartperp}:${DB_PASSWORD:-smartperp123}@postgres:5432/${DB_NAME:-smartperp}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-smart_perp_bot}
     depends_on:
       postgres:
         condition: service_healthy
@@ -51,6 +53,8 @@ services:
       DATABASE_URL: postgres://${DB_USER:-smartperp}:${DB_PASSWORD:-smartperp123}@postgres:5432/${DB_NAME:-smartperp}
       WORKER_LEADERBOARD_CRON: ${WORKER_LEADERBOARD_CRON:-0 0,12 * * *}
       WORKER_TRADES_CRON: ${WORKER_TRADES_CRON:-30 0,12 * * *}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-smart_perp_bot}
     depends_on:
       postgres:
         condition: service_healthy
