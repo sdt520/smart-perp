@@ -78,13 +78,15 @@ export async function syncLeaderboard(): Promise<number> {
   let newWallets = 0;
   let updatedWallets = 0;
 
-  // Only process top 1000 wallets with positive monthly PnL
+  // Sort leaderboard by monthly PnL descending (to ensure we get the most profitable wallets)
+  // and take top 500. This matches the official leaderboard "Trader PnL" view.
   const topWallets = leaderboard
-    .filter(entry => {
-      const monthPerf = entry.windowPerformances.find(([period]) => period === 'month');
-      return monthPerf && parseFloat(monthPerf[1].pnl) > 0;
+    .sort((a, b) => {
+      const pnlA = parseFloat(a.windowPerformances.find(([p]) => p === 'month')?.[1].pnl || '0');
+      const pnlB = parseFloat(b.windowPerformances.find(([p]) => p === 'month')?.[1].pnl || '0');
+      return pnlB - pnlA;
     })
-    .slice(0, 1000);
+    .slice(0, 500);
 
   console.log(`📈 Processing top ${topWallets.length} profitable wallets...`);
 
@@ -117,13 +119,11 @@ export async function syncLeaderboard(): Promise<number> {
       console.log(`  ✅ New: ${address.slice(0, 10)}...${entry.displayName ? ` (${entry.displayName})` : ''}`);
     } else {
       walletId = existing.rows[0].id;
-      // Update display name if available
-      if (entry.displayName) {
-        await db.query(
-          'UPDATE wallets SET label = $1, updated_at = NOW() WHERE id = $2',
-          [entry.displayName, walletId]
-        );
-      }
+      // Update display name if available and ensure is_active is true
+      await db.query(
+        'UPDATE wallets SET label = COALESCE($1, label), is_active = true, updated_at = NOW() WHERE id = $2',
+        [entry.displayName, walletId]
+      );
       updatedWallets++;
     }
 
@@ -165,6 +165,30 @@ export async function syncLeaderboard(): Promise<number> {
         ]
       );
     }
+  }
+
+  // Deactivate wallets that are no longer in the top 500
+  if (topWallets.length > 0) {
+    const activeAddresses = topWallets.map(w => w.ethAddress.toLowerCase());
+    
+    // We need to batch this if there are too many parameters, but for 500 it should be fine in Postgres
+    // However, to be safe and use a simpler query:
+    // Mark all wallets as inactive first if they are not in our new list
+    // Or better: UPDATE wallets SET is_active = false WHERE platform_id = $1 AND address NOT IN (...) AND is_active = true
+    
+    // Generate placeholders $2, $3, ...
+    const placeholders = activeAddresses.map((_, i) => `$${i + 2}`).join(', ');
+    
+    const deactivateResult = await db.query(
+      `UPDATE wallets 
+       SET is_active = false, updated_at = NOW() 
+       WHERE platform_id = $1 
+       AND is_active = true 
+       AND address NOT IN (${placeholders})`,
+      [PLATFORM_ID, ...activeAddresses]
+    );
+    
+    console.log(`📉 Deactivated ${deactivateResult.rowCount} wallets that dropped out of top 500`);
   }
 
   console.log(`📊 Leaderboard sync complete. New: ${newWallets}, Updated: ${updatedWallets}`);
@@ -233,8 +257,8 @@ export async function syncWalletTrades(walletId: number, address: string): Promi
 }
 
 /**
- * Sync trades for all wallets (1000 wallets)
- * With 500ms delay between requests, full sync takes ~8-10 minutes
+ * Sync trades for all wallets (500 wallets)
+ * With 500ms delay between requests, full sync takes ~4-5 minutes
  */
 export async function syncAllTrades(): Promise<void> {
   console.log('📈 Syncing trades for all wallets...');
@@ -246,7 +270,7 @@ export async function syncAllTrades(): Promise<void> {
      LEFT JOIN wallet_metrics m ON w.id = m.wallet_id
      WHERE w.platform_id = $1 AND w.is_active = true
      ORDER BY COALESCE(m.pnl_30d, 0) DESC
-     LIMIT 1000`,
+     LIMIT 500`,
     [PLATFORM_ID]
   );
 

@@ -6,6 +6,8 @@ interface WalletTableProps {
   wallets: SmartWallet[];
   loading?: boolean;
   startIndex?: number;
+  sortConfig?: SortConfig;
+  onSort?: (field: SortField) => void;
 }
 
 const columns: { key: SortField | 'address'; label: string; align: 'left' | 'right' }[] = [
@@ -80,6 +82,8 @@ function SortIcon({ direction }: { direction: 'asc' | 'desc' | null }) {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.5"
+      width="14"
+      height="14"
     >
       <path d="M7 14l5-5 5 5" />
     </svg>
@@ -115,26 +119,34 @@ function CopyButton({ address }: { address: string }) {
   );
 }
 
-export function WalletTable({ wallets, loading, startIndex = 0 }: WalletTableProps) {
-  const [sortConfig, setSortConfig] = useState<SortConfig>({
+export function WalletTable({ wallets, loading, startIndex = 0, sortConfig, onSort }: WalletTableProps) {
+  const [internalSortConfig, setInternalSortConfig] = useState<SortConfig>({
     field: 'pnl30d',
     direction: 'desc',
   });
 
-  const sortedWallets = useMemo(() => {
+  const currentSortConfig = sortConfig || internalSortConfig;
+
+  const displayWallets = useMemo(() => {
+    if (onSort) return wallets;
+    
     return [...wallets].sort((a, b) => {
-      const aValue = a[sortConfig.field];
-      const bValue = b[sortConfig.field];
-      const modifier = sortConfig.direction === 'asc' ? 1 : -1;
+      const aValue = a[currentSortConfig.field];
+      const bValue = b[currentSortConfig.field];
+      const modifier = currentSortConfig.direction === 'asc' ? 1 : -1;
       return (aValue - bValue) * modifier;
     });
-  }, [wallets, sortConfig]);
+  }, [wallets, currentSortConfig, onSort]);
 
   const handleSort = (field: SortField) => {
-    setSortConfig((prev) => ({
-      field,
-      direction: prev.field === field && prev.direction === 'desc' ? 'asc' : 'desc',
-    }));
+    if (onSort) {
+      onSort(field);
+    } else {
+      setInternalSortConfig((prev) => ({
+        field,
+        direction: prev.field === field && prev.direction === 'desc' ? 'asc' : 'desc',
+      }));
+    }
   };
 
   if (loading) {
@@ -177,10 +189,10 @@ export function WalletTable({ wallets, loading, startIndex = 0 }: WalletTablePro
                   onClick={() => column.key !== 'address' && handleSort(column.key as SortField)}
                 >
                   <div className={`flex items-center gap-1.5 ${column.align === 'right' ? 'justify-end' : ''}`}>
-                    {column.label}
+                   {column.label}
                     {column.key !== 'address' && (
                       <SortIcon
-                        direction={sortConfig.field === column.key ? sortConfig.direction : null}
+                        direction={currentSortConfig.field === column.key ? currentSortConfig.direction : null}
                       />
                     )}
                   </div>
@@ -189,7 +201,7 @@ export function WalletTable({ wallets, loading, startIndex = 0 }: WalletTablePro
             </tr>
           </thead>
           <tbody>
-            {sortedWallets.map((wallet, index) => (
+            {displayWallets.map((wallet, index) => (
               <tr
                 key={wallet.address}
                 className="table-row-hover border-b border-[var(--color-border)]/50 last:border-b-0"

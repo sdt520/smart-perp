@@ -17,6 +17,8 @@ export function Home() {
     changePageSize,
     searchQuery,
     search,
+    sortConfig,
+    updateSort,
   } = useWallets({
     initialSort: { field: 'pnl30d', direction: 'desc' },
     initialPageSize: 50,
@@ -249,6 +251,8 @@ export function Home() {
               wallets={wallets} 
               loading={loading} 
               startIndex={(page - 1) * pageSize}
+              sortConfig={sortConfig}
+              onSort={updateSort}
             />
             {total > 0 && (
               <Pagination
