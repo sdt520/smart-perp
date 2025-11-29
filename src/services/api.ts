@@ -177,6 +177,31 @@ export async function checkHealth(): Promise<boolean> {
 }
 
 // Fetch last sync time from worker
+// Fetch a single wallet by address (supports both database and arbitrary addresses)
+export async function fetchWalletByAddress(address: string): Promise<WalletApiItem | null> {
+  try {
+    const response = await fetch(`${API_BASE}/wallets/address/${address}`);
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const data: ApiResponse<WalletApiItem> & { source?: string } = await response.json();
+    
+    if (!data.success) {
+      return null;
+    }
+
+    return data.data;
+  } catch (error) {
+    console.error('Error fetching wallet by address:', error);
+    return null;
+  }
+}
+
 export async function fetchLastSync(): Promise<{ lastSyncAt: string | null; jobType: string | null }> {
   try {
     const response = await fetch(`${API_BASE}/wallets/last-sync`);

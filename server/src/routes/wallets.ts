@@ -4,6 +4,67 @@ import * as walletService from '../services/walletService.js';
 import db from '../db/index.js';
 import type { SortField, SortDirection } from '../types/index.js';
 
+// Hyperliquid API base URL
+const HL_API_BASE = 'https://api.hyperliquid.xyz';
+
+// Fetch user stats from Hyperliquid API
+async function fetchHyperliquidUserStats(address: string): Promise<{
+  pnl30d: number;
+  winRate30d: number;
+  tradesCount30d: number;
+  volume30d: number;
+} | null> {
+  try {
+    // Fetch user fills for the last 30 days
+    const endTime = Date.now();
+    const startTime = endTime - 30 * 24 * 60 * 60 * 1000;
+    
+    const response = await fetch(`${HL_API_BASE}/info`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'userFillsByTime',
+        user: address,
+        startTime,
+        endTime,
+      }),
+    });
+    
+    if (!response.ok) return null;
+    
+    const fills = await response.json();
+    if (!Array.isArray(fills) || fills.length === 0) {
+      return { pnl30d: 0, winRate30d: 0, tradesCount30d: 0, volume30d: 0 };
+    }
+    
+    // Calculate stats from fills
+    let totalPnl = 0;
+    let totalVolume = 0;
+    let winCount = 0;
+    let totalTrades = fills.length;
+    
+    for (const fill of fills) {
+      const closedPnl = parseFloat(fill.closedPnl || '0');
+      const size = Math.abs(parseFloat(fill.sz || '0'));
+      const price = parseFloat(fill.px || '0');
+      
+      totalPnl += closedPnl;
+      totalVolume += size * price;
+      if (closedPnl > 0) winCount++;
+    }
+    
+    return {
+      pnl30d: totalPnl,
+      winRate30d: totalTrades > 0 ? (winCount / totalTrades) * 100 : 0,
+      tradesCount30d: totalTrades,
+      volume30d: totalVolume,
+    };
+  } catch (error) {
+    console.error('Error fetching Hyperliquid user stats:', error);
+    return null;
+  }
+}
+
 const router = Router();
 
 // Query params schema
@@ -127,23 +188,61 @@ router.get('/last-sync', async (_req, res) => {
 });
 
 // GET /api/wallets/address/:address - Get wallet by address
+// Supports both database wallets and arbitrary addresses (fetched from Hyperliquid)
 router.get('/address/:address', async (req, res) => {
   try {
     const { address } = req.params;
     const platform = (req.query.platform as string) || 'hyperliquid';
     
+    // First try to find in database
     const wallet = await walletService.getWalletByAddress(address, platform);
-    if (!wallet) {
-      res.status(404).json({
-        success: false,
-        error: 'Wallet not found',
+    if (wallet) {
+      res.json({
+        success: true,
+        data: wallet,
+        source: 'database',
       });
       return;
     }
 
-    res.json({
-      success: true,
-      data: wallet,
+    // If not in database and it's a valid Ethereum address, fetch from Hyperliquid
+    if (/^0x[a-fA-F0-9]{40}$/.test(address)) {
+      console.log(`Fetching external address from Hyperliquid: ${address}`);
+      const hlStats = await fetchHyperliquidUserStats(address);
+      
+      if (hlStats) {
+        // Return data in the same format as database wallets
+        res.json({
+          success: true,
+          data: {
+            id: null, // Not in database
+            address: address.toLowerCase(),
+            platform_id: 'hyperliquid',
+            platform_name: 'Hyperliquid',
+            twitter_handle: null,
+            label: null,
+            pnl_1d: 0, // Not available from API
+            pnl_7d: 0, // Not available from API
+            pnl_30d: hlStats.pnl30d,
+            win_rate_7d: 0, // Not available from API
+            win_rate_30d: hlStats.winRate30d,
+            trades_count_7d: 0, // Not available from API
+            trades_count_30d: hlStats.tradesCount30d,
+            total_volume_7d: 0, // Not available from API
+            total_volume_30d: hlStats.volume30d,
+            last_trade_at: null,
+            calculated_at: new Date().toISOString(),
+            rank: null, // Not in leaderboard
+          },
+          source: 'hyperliquid_api',
+        });
+        return;
+      }
+    }
+
+    res.status(404).json({
+      success: false,
+      error: 'Wallet not found',
     });
   } catch (error) {
     console.error('Error fetching wallet by address:', error);

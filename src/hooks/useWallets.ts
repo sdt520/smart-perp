@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { SmartWallet, SortConfig } from '../types';
-import { fetchWallets, fetchStats, checkHealth } from '../services/api';
+import { fetchWallets, fetchStats, checkHealth, fetchWalletByAddress } from '../services/api';
 import { mockWalletData } from '../data/sampleWallets';
+
+// Check if a string is a valid Ethereum address
+function isValidEthAddress(address: string): boolean {
+  return /^0x[a-fA-F0-9]{40}$/i.test(address);
+}
 
 interface UseWalletsOptions {
   platform?: string;
@@ -70,6 +75,41 @@ export function useWallets(options: UseWalletsOptions = {}) {
       if (isApiAvailable === null) {
         // Still checking API availability
         return;
+      }
+
+      // If searching for a complete Ethereum address, fetch directly
+      if (searchQuery && isValidEthAddress(searchQuery)) {
+        try {
+          const walletData = await fetchWalletByAddress(searchQuery);
+          if (walletData) {
+            // Convert API response to SmartWallet format
+            const wallet: SmartWallet = {
+              id: walletData.id?.toString() || searchQuery,
+              address: walletData.address,
+              platform: walletData.platform_name || 'Hyperliquid',
+              label: walletData.label || undefined,
+              twitter: walletData.twitter_handle || undefined,
+              pnl1d: walletData.pnl_1d || 0,
+              pnl7d: walletData.pnl_7d || 0,
+              pnl30d: walletData.pnl_30d || 0,
+              winRate7d: walletData.win_rate_7d || 0,
+              winRate30d: walletData.win_rate_30d || 0,
+              trades7d: walletData.trades_count_7d || 0,
+              trades30d: walletData.trades_count_30d || 0,
+              volume7d: walletData.total_volume_7d || 0,
+              volume30d: walletData.total_volume_30d || 0,
+              lastTradeAt: walletData.last_trade_at || undefined,
+              rank: walletData.rank || undefined, // May be undefined for non-leaderboard addresses
+            };
+            setWallets([wallet]);
+            setTotal(1);
+            // Keep existing stats
+            return;
+          }
+        } catch {
+          // If direct fetch fails, continue with normal search
+          console.log('Direct address fetch failed, trying normal search');
+        }
       }
 
       // Fetch from API with pagination and search

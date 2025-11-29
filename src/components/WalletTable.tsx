@@ -212,8 +212,8 @@ export function WalletTable({ wallets, loading, startIndex = 0, sortConfig, onSo
                       address={wallet.address} 
                       onLoginRequired={onLoginRequired}
                     />
-                    <div className="w-7 h-7 rounded-lg bg-[var(--color-bg-tertiary)] flex items-center justify-center text-xs font-medium text-[var(--color-text-tertiary)]">
-                      {wallet.rank ?? (startIndex + index + 1)}
+                    <div className="w-7 h-7 rounded-lg bg-[var(--color-bg-tertiary)] flex items-center justify-center text-xs font-medium text-[var(--color-text-tertiary)]" title={wallet.rank ? `Rank #${wallet.rank}` : '不在排行榜中'}>
+                      {wallet.rank ?? '-'}
                     </div>
                     <div className="flex items-center gap-2">
                       <WalletAddress 
