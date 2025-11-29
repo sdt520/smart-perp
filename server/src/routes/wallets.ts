@@ -7,57 +7,77 @@ import type { SortField, SortDirection } from '../types/index.js';
 // Hyperliquid API base URL
 const HL_API_BASE = 'https://api.hyperliquid.xyz';
 
-// Fetch user stats from Hyperliquid API
+// Portfolio API response types
+interface PortfolioTimeframeData {
+  accountValueHistory: [number, string][];
+  pnlHistory: [number, string][];
+  vlm: string;
+}
+
+// Fetch user stats from Hyperliquid Portfolio API
+// https://docs.chainstack.com/reference/hyperliquid-info-portfolio
 async function fetchHyperliquidUserStats(address: string): Promise<{
+  pnl1d: number;
+  pnl7d: number;
   pnl30d: number;
-  winRate30d: number;
-  tradesCount30d: number;
+  volume1d: number;
+  volume7d: number;
   volume30d: number;
 } | null> {
   try {
-    // Fetch user fills for the last 30 days
-    const endTime = Date.now();
-    const startTime = endTime - 30 * 24 * 60 * 60 * 1000;
-    
+    // Use the portfolio API to get PnL data for multiple timeframes
     const response = await fetch(`${HL_API_BASE}/info`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        type: 'userFillsByTime',
+        type: 'portfolio',
         user: address,
-        startTime,
-        endTime,
       }),
     });
     
     if (!response.ok) return null;
     
-    const fills = await response.json();
-    if (!Array.isArray(fills) || fills.length === 0) {
-      return { pnl30d: 0, winRate30d: 0, tradesCount30d: 0, volume30d: 0 };
-    }
+    const portfolioData: [string, PortfolioTimeframeData][] = await response.json();
     
-    // Calculate stats from fills
-    let totalPnl = 0;
-    let totalVolume = 0;
-    let winCount = 0;
-    let totalTrades = fills.length;
+    // Extract PnL from each timeframe
+    // perpDay = 1D, perpWeek = 7D, perpMonth = 30D
+    let pnl1d = 0;
+    let pnl7d = 0;
+    let pnl30d = 0;
+    let volume1d = 0;
+    let volume7d = 0;
+    let volume30d = 0;
     
-    for (const fill of fills) {
-      const closedPnl = parseFloat(fill.closedPnl || '0');
-      const size = Math.abs(parseFloat(fill.sz || '0'));
-      const price = parseFloat(fill.px || '0');
+    for (const [timeframe, data] of portfolioData) {
+      if (!data.pnlHistory || data.pnlHistory.length === 0) continue;
       
-      totalPnl += closedPnl;
-      totalVolume += size * price;
-      if (closedPnl > 0) winCount++;
+      // Get the latest PnL value (cumulative PnL for the period)
+      const latestPnl = parseFloat(data.pnlHistory[data.pnlHistory.length - 1][1] || '0');
+      const volume = parseFloat(data.vlm || '0');
+      
+      switch (timeframe) {
+        case 'perpDay':
+          pnl1d = latestPnl;
+          volume1d = volume;
+          break;
+        case 'perpWeek':
+          pnl7d = latestPnl;
+          volume7d = volume;
+          break;
+        case 'perpMonth':
+          pnl30d = latestPnl;
+          volume30d = volume;
+          break;
+      }
     }
     
     return {
-      pnl30d: totalPnl,
-      winRate30d: totalTrades > 0 ? (winCount / totalTrades) * 100 : 0,
-      tradesCount30d: totalTrades,
-      volume30d: totalVolume,
+      pnl1d,
+      pnl7d,
+      pnl30d,
+      volume1d,
+      volume7d,
+      volume30d,
     };
   } catch (error) {
     console.error('Error fetching Hyperliquid user stats:', error);
@@ -212,6 +232,7 @@ router.get('/address/:address', async (req, res) => {
       
       if (hlStats) {
         // Return data in the same format as database wallets
+        // Using Hyperliquid Portfolio API for 1D, 7D, 30D PnL
         res.json({
           success: true,
           data: {
@@ -221,14 +242,14 @@ router.get('/address/:address', async (req, res) => {
             platform_name: 'Hyperliquid',
             twitter_handle: null,
             label: null,
-            pnl_1d: 0, // Not available from API
-            pnl_7d: 0, // Not available from API
+            pnl_1d: hlStats.pnl1d,
+            pnl_7d: hlStats.pnl7d,
             pnl_30d: hlStats.pnl30d,
-            win_rate_7d: 0, // Not available from API
-            win_rate_30d: hlStats.winRate30d,
-            trades_count_7d: 0, // Not available from API
-            trades_count_30d: hlStats.tradesCount30d,
-            total_volume_7d: 0, // Not available from API
+            win_rate_7d: 0, // Not available from portfolio API
+            win_rate_30d: 0, // Not available from portfolio API
+            trades_count_7d: 0, // Not available from portfolio API
+            trades_count_30d: 0, // Not available from portfolio API
+            total_volume_7d: hlStats.volume7d,
             total_volume_30d: hlStats.volume30d,
             last_trade_at: null,
             calculated_at: new Date().toISOString(),
