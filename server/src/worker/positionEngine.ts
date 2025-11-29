@@ -397,7 +397,7 @@ async function onFlowEvent(event: TokenFlowEvent): Promise<void> {
   sendTradeNotification(event.address, {
     symbol: event.symbol,
     action: event.action,
-    sizeUsd: event.sizeChangeUsd,
+    sizeUsd: event.sizeUsd,
     price: event.price,
     newSide: event.newSide,
     newPositionUsd: event.newPositionUsd,
