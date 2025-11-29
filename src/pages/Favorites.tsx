@@ -268,7 +268,7 @@ export function Favorites() {
       });
       const data = await res.json();
       if (data.success) {
-        setTelegramStatus({ bound: false, verified: false, notificationsEnabled: false });
+        setTelegramStatus({ bound: false, verified: false, notificationsEnabled: false, minPositionUsd: 0 });
       }
     } catch (err) {
       console.error('Failed to unbind telegram:', err);
