@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { CoinSelector } from '../components/CoinSelector';
 
 // Types
 interface TradeEvent {
@@ -7,7 +8,7 @@ interface TradeEvent {
   timestamp: number;
   address: string;
   label?: string;
-  smartScore: number;
+  rank: number; // Hyperliquid rank
   pnl30d: number;
   winRate30d: number;
   action: 'open_long' | 'open_short' | 'close_long' | 'close_short' | 'add_long' | 'add_short' | 'reduce_long' | 'reduce_short';
@@ -30,7 +31,6 @@ interface TokenOverview {
 }
 
 // Constants
-const COINS = ['BTC', 'ETH', 'SOL', 'DOGE', 'XRP', 'LINK', 'AVAX', 'ARB', 'OP', 'SUI', 'APT', 'INJ', 'TIA', 'SEI', 'PEPE', 'WIF', 'BONK'];
 const TIME_RANGES = [
   { value: '1h', label: '1小时' },
   { value: '4h', label: '4小时' },
@@ -53,6 +53,9 @@ const DIRECTIONS = [
   { value: 'short', label: '只看空单' },
   { value: 'reversal', label: '只看反转' },
 ];
+
+const API_BASE = import.meta.env.VITE_API_BASE || '/api';
+
 // Helper functions
 function formatNumber(value: number, decimals = 2): string {
   const absValue = Math.abs(value);
@@ -145,43 +148,17 @@ function FilterSelect({
   );
 }
 
-// Coin Selector Component
-function CoinSelector({ 
-  selectedCoin, 
-  onSelect 
-}: { 
-  selectedCoin: string; 
-  onSelect: (coin: string) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {COINS.map(coin => (
-        <button
-          key={coin}
-          onClick={() => onSelect(coin)}
-          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-            selectedCoin === coin
-              ? 'bg-[var(--color-accent-primary)] text-white'
-              : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]/80'
-          }`}
-        >
-          {coin}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 // Token Overview Component
-function TokenOverviewCard({ overview, coin }: { overview: TokenOverview | null; coin: string }) {
-  if (!overview) {
+function TokenOverviewCard({ overview, coin }: { overview: TokenOverview | null; coin: string | null }) {
+  if (!overview || !coin) {
     return (
-      <div className="glass-card rounded-xl p-4 animate-pulse">
-        <div className="h-4 bg-[var(--color-bg-tertiary)] rounded w-1/2 mb-3"></div>
-        <div className="space-y-2">
-          <div className="h-8 bg-[var(--color-bg-tertiary)] rounded"></div>
-          <div className="h-8 bg-[var(--color-bg-tertiary)] rounded"></div>
-        </div>
+      <div className="glass-card rounded-xl p-4">
+        <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-3">
+          代币概览
+        </h3>
+        <p className="text-sm text-[var(--color-text-muted)]">
+          请选择一个代币查看概览
+        </p>
       </div>
     );
   }
@@ -251,8 +228,8 @@ function TradeEventCard({ event }: { event: TradeEvent }) {
           {formatTime(event.timestamp)}
         </span>
         <div className="flex items-center gap-2">
-          <span className="text-xs px-2 py-0.5 rounded bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)]">
-            Score {event.smartScore}
+          <span className="text-xs px-2 py-0.5 rounded bg-[var(--color-accent-blue)]/10 text-[var(--color-accent-blue)]">
+            Rank #{event.rank}
           </span>
           <span className={`text-xs ${event.pnl30d >= 0 ? 'text-[var(--color-accent-primary)]' : 'text-[var(--color-accent-negative)]'}`}>
             30D {event.pnl30d >= 0 ? '+' : ''}{event.pnl30d.toFixed(0)}%
@@ -314,56 +291,10 @@ function TradeEventCard({ event }: { event: TradeEvent }) {
   );
 }
 
-// Generate mock data for demo
-function generateMockEvents(coin: string, count: number): TradeEvent[] {
-  const events: TradeEvent[] = [];
-  const now = Date.now();
-  const actions: TradeEvent['action'][] = ['open_long', 'open_short', 'close_long', 'close_short', 'add_long', 'add_short', 'reduce_long', 'reduce_short'];
-  
-  for (let i = 0; i < count; i++) {
-    const action = actions[Math.floor(Math.random() * actions.length)];
-    const positionBefore = Math.random() * 500000;
-    const size = Math.random() * 200000 + 10000;
-    const isIncrease = action.includes('open') || action.includes('add');
-    
-    events.push({
-      id: `${i}`,
-      timestamp: now - i * (60000 + Math.random() * 300000), // Random intervals
-      address: `0x${Math.random().toString(16).slice(2, 10)}...${Math.random().toString(16).slice(2, 6)}`,
-      label: Math.random() > 0.7 ? `Smart Trader #${Math.floor(Math.random() * 100)}` : undefined,
-      smartScore: Math.floor(Math.random() * 30) + 70,
-      pnl30d: (Math.random() - 0.3) * 100,
-      winRate30d: Math.random() * 30 + 50,
-      action,
-      coin,
-      size,
-      price: coin === 'BTC' ? 95000 + Math.random() * 5000 : coin === 'ETH' ? 3500 + Math.random() * 200 : 100 + Math.random() * 50,
-      leverage: Math.random() * 10 + 1,
-      positionBefore,
-      positionAfter: isIncrease ? positionBefore + size : Math.max(0, positionBefore - size),
-      coinWinRate7d: Math.random() * 40 + 50,
-    });
-  }
-  
-  return events.sort((a, b) => b.timestamp - a.timestamp);
-}
-
-function generateMockOverview(_coin: string): TokenOverview {
-  const netLong = (Math.random() - 0.5) * 10000000;
-  return {
-    netLongShort24h: netLong,
-    topHoldersDirection: netLong > 1000000 ? 'long' : netLong < -1000000 ? 'short' : 'neutral',
-    topHoldersNetPosition: Math.abs(netLong) * 2,
-    volume24h: Math.random() * 50000000 + 10000000,
-    tradesCount24h: Math.floor(Math.random() * 5000) + 1000,
-    uniqueTraders24h: Math.floor(Math.random() * 200) + 50,
-  };
-}
-
 // Main Component
 export function TokenFlow() {
   // Filters
-  const [selectedCoin, setSelectedCoin] = useState('BTC');
+  const [selectedCoin, setSelectedCoin] = useState<string | null>('BTC');
   const [timeRange, setTimeRange] = useState('24h');
   const [addressPool, setAddressPool] = useState(100);
   const [minSize, setMinSize] = useState(10000);
@@ -373,49 +304,87 @@ export function TokenFlow() {
   const [events, setEvents] = useState<TradeEvent[]>([]);
   const [overview, setOverview] = useState<TokenOverview | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Fetch data
+  // Fetch data from API
   const fetchData = useCallback(async () => {
+    if (!selectedCoin) {
+      setEvents([]);
+      setOverview(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
+    setError(null);
+
     try {
-      // TODO: Replace with real API calls
-      // For now, use mock data
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Calculate time range
+      const now = Date.now();
+      let startTime: number;
+      switch (timeRange) {
+        case '1h':
+          startTime = now - 60 * 60 * 1000;
+          break;
+        case '4h':
+          startTime = now - 4 * 60 * 60 * 1000;
+          break;
+        default:
+          startTime = now - 24 * 60 * 60 * 1000;
+      }
+
+      // Fetch trade events
+      const eventsResponse = await fetch(
+        `${API_BASE}/trades/flow?coin=${selectedCoin}&startTime=${startTime}&topN=${addressPool}&minSize=${minSize}`
+      );
       
-      const mockEvents = generateMockEvents(selectedCoin, 50);
-      const mockOverview = generateMockOverview(selectedCoin);
+      if (!eventsResponse.ok) {
+        throw new Error('Failed to fetch trade events');
+      }
       
-      setEvents(mockEvents);
-      setOverview(mockOverview);
-    } catch (error) {
-      console.error('Error fetching token flow data:', error);
+      const eventsData = await eventsResponse.json();
+      if (eventsData.success) {
+        setEvents(eventsData.data || []);
+      }
+
+      // Fetch overview
+      const overviewResponse = await fetch(
+        `${API_BASE}/trades/overview?coin=${selectedCoin}&topN=${addressPool}`
+      );
+      
+      if (overviewResponse.ok) {
+        const overviewData = await overviewResponse.json();
+        if (overviewData.success) {
+          setOverview(overviewData.data);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching token flow data:', err);
+      setError('加载数据失败，请稍后重试');
     } finally {
       setLoading(false);
     }
-  }, [selectedCoin, timeRange, addressPool]);
+  }, [selectedCoin, timeRange, addressPool, minSize]);
 
   useEffect(() => {
     fetchData();
+    
+    // Auto refresh every 30 seconds
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
   }, [fetchData]);
 
-  // Filter events
+  // Filter events by direction
   const filteredEvents = useMemo(() => {
     return events.filter(event => {
-      // Min size filter
-      if (event.size < minSize) return false;
-      
-      // Direction filter
       if (direction === 'long' && !event.action.includes('long')) return false;
       if (direction === 'short' && !event.action.includes('short')) return false;
       if (direction === 'reversal') {
-        // Reversal = closing one direction and opening opposite
-        // Simplified: just show close actions for now
         if (!event.action.includes('close')) return false;
       }
-      
       return true;
     });
-  }, [events, minSize, direction]);
+  }, [events, direction]);
 
   return (
     <div className="min-h-screen">
@@ -436,7 +405,10 @@ export function TokenFlow() {
           {/* Coin Selector */}
           <div className="glass-card rounded-xl p-4">
             <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-3">选择代币</h3>
-            <CoinSelector selectedCoin={selectedCoin} onSelect={setSelectedCoin} />
+            <CoinSelector 
+              selectedCoin={selectedCoin} 
+              onSelectCoin={(coin) => setSelectedCoin(coin || 'BTC')} 
+            />
           </div>
 
           {/* Filters */}
@@ -491,7 +463,7 @@ export function TokenFlow() {
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-[var(--color-accent-primary)] animate-pulse"></div>
-                <span className="text-xs text-[var(--color-text-muted)]">实时更新</span>
+                <span className="text-xs text-[var(--color-text-muted)]">每30秒刷新</span>
               </div>
             </div>
 
@@ -509,6 +481,28 @@ export function TokenFlow() {
                     <div className="h-4 w-full bg-[var(--color-bg-tertiary)] rounded"></div>
                   </div>
                 ))
+              ) : error ? (
+                <div className="text-center py-12 text-[var(--color-text-muted)]">
+                  <svg className="w-12 h-12 mx-auto mb-4 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 8v4M12 16h.01" />
+                  </svg>
+                  <p>{error}</p>
+                  <button
+                    onClick={fetchData}
+                    className="mt-4 px-4 py-2 bg-[var(--color-bg-tertiary)] rounded-lg text-sm hover:bg-[var(--color-bg-tertiary)]/80 transition-colors"
+                  >
+                    重试
+                  </button>
+                </div>
+              ) : !selectedCoin ? (
+                <div className="text-center py-12 text-[var(--color-text-muted)]">
+                  <svg className="w-12 h-12 mx-auto mb-4 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 6v6l4 2" />
+                  </svg>
+                  <p>请选择一个代币查看交易流</p>
+                </div>
               ) : filteredEvents.length === 0 ? (
                 <div className="text-center py-12 text-[var(--color-text-muted)]">
                   <svg className="w-12 h-12 mx-auto mb-4 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
@@ -530,4 +524,3 @@ export function TokenFlow() {
     </div>
   );
 }
-
