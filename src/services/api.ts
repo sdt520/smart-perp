@@ -40,6 +40,7 @@ interface WalletApiItem {
   total_volume_30d: number;
   last_trade_at: string | null;
   calculated_at: string | null;
+  rank?: number;
 }
 
 interface StatsApiResponse {
@@ -74,6 +75,7 @@ function transformWallet(item: WalletApiItem): SmartWallet {
     trades30d: item.trades_count_30d,
     twitter: item.twitter_handle || undefined,
     lastUpdated: item.calculated_at ? new Date(item.calculated_at) : new Date(),
+    rank: item.rank,
   };
 }
 

@@ -213,7 +213,7 @@ export function WalletTable({ wallets, loading, startIndex = 0, sortConfig, onSo
                       onLoginRequired={onLoginRequired}
                     />
                     <div className="w-7 h-7 rounded-lg bg-[var(--color-bg-tertiary)] flex items-center justify-center text-xs font-medium text-[var(--color-text-tertiary)]">
-                      {startIndex + index + 1}
+                      {wallet.rank ?? (startIndex + index + 1)}
                     </div>
                     <div className="flex items-center gap-2">
                       <WalletAddress 

@@ -9,6 +9,7 @@ export interface SmartWallet {
   trades30d: number;
   twitter?: string;
   lastUpdated: Date;
+  rank?: number; // 实际排名
 }
 
 export type SortField = 
