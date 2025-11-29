@@ -330,7 +330,8 @@ export function PositionsTable({ positions, title, showPnl = false }: PositionsT
             );
           })}
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
   );
 }
