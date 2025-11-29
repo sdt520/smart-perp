@@ -19,11 +19,15 @@ git pull origin main
 echo "🔨 Building Docker images..."
 docker compose -f $COMPOSE_FILE build --no-cache
 
-# 构建前端并复制到 nginx 目录
-echo "📦 Building frontend..."
-docker compose -f $COMPOSE_FILE run --rm api sh -c "cp -r /app/frontend/dist/* /tmp/"
-mkdir -p frontend-dist
-docker compose -f $COMPOSE_FILE run --rm -v $(pwd)/frontend-dist:/output api sh -c "cp -r /app/frontend/dist/. /output/"
+# 复制前端文件到 nginx 目录
+echo "📦 Copying frontend files..."
+rm -rf frontend-dist
+docker cp smart-perp-api:/app/frontend/dist ./frontend-dist || {
+    # 如果 api 容器不存在，先启动它，复制文件，然后继续
+    docker compose -f $COMPOSE_FILE up -d api
+    sleep 5
+    docker cp smart-perp-api:/app/frontend/dist ./frontend-dist
+}
 
 # 停止旧容器
 echo "⏹️  Stopping old containers..."
