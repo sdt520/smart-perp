@@ -59,22 +59,36 @@ router.get('/flow', async (req, res) => {
     
     // If we have data from token_flow_events, use it
     if (result.rows.length > 0) {
-      const events = result.rows.map(row => ({
-        id: row.id.toString(),
-        timestamp: new Date(row.ts).getTime(),
-        address: row.address,
-        label: row.label || undefined,
-        rank: row.trader_rank,
-        pnl30d: parseFloat(row.pnl_30d) || 0,
-        winRate30d: parseFloat(row.win_rate_30d) || 0,
-        action: row.action,
-        coin: row.symbol,
-        size: parseFloat(row.size_change_usd) || 0,
-        price: parseFloat(row.fill_price) || 0,
-        leverage: parseFloat(row.leverage) || 1,
-        positionBefore: parseFloat(row.new_notional_usd) || 0,
-        positionAfter: parseFloat(row.new_notional_usd) || 0,
-      }));
+      const events = result.rows.map(row => {
+        const sizeChange = parseFloat(row.size_change_usd) || 0;
+        const newNotional = parseFloat(row.new_notional_usd) || 0;
+        const action = row.action as string;
+        
+        // 计算 positionBefore：
+        // - 加仓(add/open): positionBefore = newPosition - sizeChange
+        // - 减仓(reduce/close): positionBefore = newPosition + sizeChange
+        const isReducing = action.includes('reduce') || action.includes('close');
+        const positionBefore = isReducing 
+          ? newNotional + sizeChange 
+          : Math.max(0, newNotional - sizeChange);
+        
+        return {
+          id: row.id.toString(),
+          timestamp: new Date(row.ts).getTime(),
+          address: row.address,
+          label: row.label || undefined,
+          rank: row.trader_rank,
+          pnl30d: parseFloat(row.pnl_30d) || 0,
+          winRate30d: parseFloat(row.win_rate_30d) || 0,
+          action: row.action,
+          coin: row.symbol,
+          size: sizeChange,
+          price: parseFloat(row.fill_price) || 0,
+          leverage: parseFloat(row.leverage) || 1,
+          positionBefore,
+          positionAfter: newNotional,
+        };
+      });
       
       return res.json({
         success: true,
