@@ -166,7 +166,7 @@ export function Favorites() {
   const [notificationSettings, setNotificationSettings] = useState<Record<string, boolean>>({});
   const [showBindModal, setShowBindModal] = useState(false);
   const [bindCode, setBindCode] = useState('');
-  const [botUsername, setBotUsername] = useState('SmartPerpBot');
+  const [botUsername, setBotUsername] = useState('smart_perp_bot');
   const [isTogglingAll, setIsTogglingAll] = useState(false);
 
   // 获取 Telegram 状态
