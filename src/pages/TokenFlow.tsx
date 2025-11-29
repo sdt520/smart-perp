@@ -444,9 +444,22 @@ export function TokenFlow() {
     return () => clearInterval(interval);
   }, [fetchData, selectedCoin, addressPool]);
 
-  // Filter events by direction
+  // Clear events when address source changes
+  useEffect(() => {
+    setEvents([]);
+  }, [addressSource]);
+
+  // Filter events by direction and address source
   const filteredEvents = useMemo(() => {
     return events.filter(event => {
+      // Filter by address source
+      if (addressSource === 'favorites') {
+        if (!favorites.has(event.address.toLowerCase())) return false;
+      } else {
+        if (event.rank > addressPool) return false;
+      }
+      
+      // Filter by direction
       if (direction === 'long' && !event.action.includes('long')) return false;
       if (direction === 'short' && !event.action.includes('short')) return false;
       if (direction === 'reversal') {
@@ -454,7 +467,7 @@ export function TokenFlow() {
       }
       return true;
     });
-  }, [events, direction]);
+  }, [events, direction, addressSource, favorites, addressPool]);
 
   return (
     <div className="min-h-screen">
