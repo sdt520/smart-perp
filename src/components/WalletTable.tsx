@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { SmartWallet, SortConfig, SortField } from '../types';
+import { FavoriteButton } from './FavoriteButton';
 
 interface WalletTableProps {
   wallets: SmartWallet[];
@@ -8,6 +9,7 @@ interface WalletTableProps {
   startIndex?: number;
   sortConfig?: SortConfig;
   onSort?: (field: SortField) => void;
+  onLoginRequired?: () => void;
 }
 
 const columns: { key: SortField | 'address'; label: string; align: 'left' | 'right' }[] = [
@@ -119,7 +121,7 @@ function CopyButton({ address }: { address: string }) {
   );
 }
 
-export function WalletTable({ wallets, loading, startIndex = 0, sortConfig, onSort }: WalletTableProps) {
+export function WalletTable({ wallets, loading, startIndex = 0, sortConfig, onSort, onLoginRequired }: WalletTableProps) {
   const [internalSortConfig, setInternalSortConfig] = useState<SortConfig>({
     field: 'pnl30d',
     direction: 'desc',
@@ -209,6 +211,11 @@ export function WalletTable({ wallets, loading, startIndex = 0, sortConfig, onSo
                 {/* Address */}
                 <td className="px-4 py-3.5">
                   <div className="flex items-center gap-3">
+                    {/* Favorite Button */}
+                    <FavoriteButton 
+                      address={wallet.address} 
+                      onLoginRequired={onLoginRequired}
+                    />
                     <div className="w-7 h-7 rounded-lg bg-[var(--color-bg-tertiary)] flex items-center justify-center text-xs font-medium text-[var(--color-text-tertiary)]">
                       {startIndex + index + 1}
                     </div>

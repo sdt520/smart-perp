@@ -4,6 +4,8 @@ import cors from 'cors';
 import walletsRouter from './routes/wallets.js';
 import platformsRouter from './routes/platforms.js';
 import coinsRouter from './routes/coins.js';
+import authRouter from './routes/auth.js';
+import favoritesRouter from './routes/favorites.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -30,6 +32,8 @@ app.use((req, _res, next) => {
 app.use('/api/wallets', walletsRouter);
 app.use('/api/platforms', platformsRouter);
 app.use('/api/coins', coinsRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/favorites', favoritesRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

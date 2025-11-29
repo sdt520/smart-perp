@@ -132,6 +132,32 @@ CREATE TABLE IF NOT EXISTS wallet_coin_metrics (
     UNIQUE(wallet_id, coin)
 );
 
+-- 10. 用户表（支持 Google OAuth 和钱包登录）
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    -- Google OAuth 字段
+    google_id VARCHAR(100) UNIQUE,
+    email VARCHAR(255) UNIQUE,
+    name VARCHAR(255),
+    avatar_url TEXT,
+    -- 钱包登录字段
+    wallet_address VARCHAR(66) UNIQUE,
+    -- 通用字段
+    auth_provider VARCHAR(20) NOT NULL, -- 'google' | 'wallet'
+    last_login_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 11. 用户收藏表
+CREATE TABLE IF NOT EXISTS user_favorites (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    wallet_id INTEGER NOT NULL REFERENCES wallets(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, wallet_id)
+);
+
 -- 索引
 CREATE INDEX IF NOT EXISTS idx_wallets_platform ON wallets(platform_id);
 CREATE INDEX IF NOT EXISTS idx_wallets_active ON wallets(is_active) WHERE is_active = true;
@@ -146,6 +172,10 @@ CREATE INDEX IF NOT EXISTS idx_daily_pnl_date ON daily_pnl_snapshots(snapshot_da
 CREATE INDEX IF NOT EXISTS idx_wallet_coin_metrics_wallet ON wallet_coin_metrics(wallet_id);
 CREATE INDEX IF NOT EXISTS idx_wallet_coin_metrics_coin ON wallet_coin_metrics(coin);
 CREATE INDEX IF NOT EXISTS idx_wallet_coin_metrics_pnl ON wallet_coin_metrics(pnl_30d DESC);
+CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
+CREATE INDEX IF NOT EXISTS idx_users_wallet_address ON users(wallet_address);
+CREATE INDEX IF NOT EXISTS idx_user_favorites_user ON user_favorites(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_favorites_wallet ON user_favorites(wallet_id);
 
 -- 触发器：自动更新 updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -209,5 +239,7 @@ COMMENT ON TABLE sync_jobs IS '数据同步任务表';
 COMMENT ON TABLE daily_pnl_snapshots IS '每日PnL快照表（用于收益曲线）';
 COMMENT ON TABLE coins IS '交易币种表';
 COMMENT ON TABLE wallet_coin_metrics IS '钱包-币种指标表（按币种分析）';
+COMMENT ON TABLE users IS '用户表（支持Google和钱包登录）';
+COMMENT ON TABLE user_favorites IS '用户收藏表';
 COMMENT ON VIEW v_wallet_leaderboard IS '钱包排行榜视图（前端API用）';
 

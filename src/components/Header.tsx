@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { fetchLastSync } from '../services/api';
+import { UserMenu } from './UserMenu';
+import { LoginModal } from './LoginModal';
 
 interface Platform {
   id: string;
@@ -17,6 +19,7 @@ export function Header() {
   const [selectedPlatform, setSelectedPlatform] = useState('hyperliquid');
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [isStale, setIsStale] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Fetch last sync time on mount and every 60 seconds
   useEffect(() => {
@@ -105,9 +108,10 @@ export function Header() {
             ))}
           </div>
 
-          {/* Last Sync Time */}
-          <div className="flex items-center gap-3">
-            <div className="text-right">
+          {/* Right Side: Last Sync Time + User Menu */}
+          <div className="flex items-center gap-4">
+            {/* Last Sync Time */}
+            <div className="text-right hidden sm:block">
               <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-widest mb-0.5">
                 更新时间
               </p>
@@ -130,9 +134,18 @@ export function Header() {
                 </p>
               </div>
             </div>
+
+            {/* User Menu */}
+            <UserMenu onLoginClick={() => setShowLoginModal(true)} />
           </div>
         </div>
       </div>
+
+      {/* Login Modal */}
+      <LoginModal 
+        isOpen={showLoginModal} 
+        onClose={() => setShowLoginModal(false)} 
+      />
     </header>
   );
 }
