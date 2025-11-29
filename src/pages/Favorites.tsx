@@ -34,7 +34,7 @@ function shortenAddress(address: string): string {
 
 export function Favorites() {
   const { isAuthenticated, getAuthHeaders } = useAuth();
-  const { refreshFavorites } = useFavorites();
+  useFavorites(); // Keep context subscription for updates
   const navigate = useNavigate();
   const [wallets, setWallets] = useState<FavoriteWallet[]>([]);
   const [isLoading, setIsLoading] = useState(true);
