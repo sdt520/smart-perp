@@ -150,12 +150,14 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- 11. 用户收藏表
+-- 支持收藏任意地址（不仅限于 Top 500）
 CREATE TABLE IF NOT EXISTS user_favorites (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    wallet_id INTEGER NOT NULL REFERENCES wallets(id) ON DELETE CASCADE,
+    wallet_id INTEGER REFERENCES wallets(id) ON DELETE CASCADE,  -- 可选，用于快速关联
+    wallet_address VARCHAR(66) NOT NULL,  -- 直接存储地址，支持任意地址
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(user_id, wallet_id)
+    UNIQUE(user_id, wallet_address)
 );
 
 -- 12. 钱包备注表

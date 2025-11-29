@@ -290,36 +290,101 @@ export async function getWalletPnlHistory(
   }));
 }
 
-// Get favorite wallets for a user
-export async function getFavoriteWallets(userId: number): Promise<WalletLeaderboardItem[]> {
-  const query = `
+// Get favorite wallets for a user (supports both database wallets and external addresses)
+export async function getFavoriteWallets(userId: number): Promise<(WalletLeaderboardItem & { rank?: number })[]> {
+  // First get all favorite addresses
+  const favoritesQuery = `
     SELECT 
-      w.id,
-      w.address,
-      w.platform_id,
-      p.name AS platform_name,
-      w.twitter_handle,
-      w.label,
-      COALESCE(m.pnl_1d, 0)::float AS pnl_1d,
-      COALESCE(m.pnl_7d, 0)::float AS pnl_7d,
-      COALESCE(m.pnl_30d, 0)::float AS pnl_30d,
-      COALESCE(m.win_rate_7d, 0)::float AS win_rate_7d,
-      COALESCE(m.win_rate_30d, 0)::float AS win_rate_30d,
-      COALESCE(m.trades_count_7d, 0) AS trades_count_7d,
-      COALESCE(m.trades_count_30d, 0) AS trades_count_30d,
-      COALESCE(m.total_volume_7d, 0)::float AS total_volume_7d,
-      COALESCE(m.total_volume_30d, 0)::float AS total_volume_30d,
-      m.last_trade_at,
-      m.calculated_at
+      uf.wallet_address,
+      uf.wallet_id,
+      uf.created_at as favorited_at
     FROM user_favorites uf
-    JOIN wallets w ON uf.wallet_id = w.id
-    JOIN platforms p ON w.platform_id = p.id
-    LEFT JOIN wallet_metrics m ON w.id = m.wallet_id
-    WHERE uf.user_id = $1 AND w.is_active = true
+    WHERE uf.user_id = $1
     ORDER BY uf.created_at DESC
   `;
-
-  const result = await db.query<WalletLeaderboardItem>(query, [userId]);
-  return result.rows;
+  
+  const favoritesResult = await db.query<{ wallet_address: string; wallet_id: number | null; favorited_at: Date }>(
+    favoritesQuery, 
+    [userId]
+  );
+  
+  if (favoritesResult.rows.length === 0) {
+    return [];
+  }
+  
+  // Get database wallets with full details
+  const dbWalletsQuery = `
+    WITH ranked_wallets AS (
+      SELECT 
+        w.id,
+        w.address,
+        w.platform_id,
+        p.name AS platform_name,
+        w.twitter_handle,
+        w.label,
+        COALESCE(m.pnl_1d, 0)::float AS pnl_1d,
+        COALESCE(m.pnl_7d, 0)::float AS pnl_7d,
+        COALESCE(m.pnl_30d, 0)::float AS pnl_30d,
+        COALESCE(m.win_rate_7d, 0)::float AS win_rate_7d,
+        COALESCE(m.win_rate_30d, 0)::float AS win_rate_30d,
+        COALESCE(m.trades_count_7d, 0) AS trades_count_7d,
+        COALESCE(m.trades_count_30d, 0) AS trades_count_30d,
+        COALESCE(m.total_volume_7d, 0)::float AS total_volume_7d,
+        COALESCE(m.total_volume_30d, 0)::float AS total_volume_30d,
+        m.last_trade_at,
+        m.calculated_at,
+        ROW_NUMBER() OVER (ORDER BY m.pnl_30d DESC NULLS LAST) as rank
+      FROM wallets w
+      JOIN platforms p ON w.platform_id = p.id
+      LEFT JOIN wallet_metrics m ON w.id = m.wallet_id
+      WHERE w.is_active = true
+    )
+    SELECT * FROM ranked_wallets
+    WHERE LOWER(address) = ANY($1)
+  `;
+  
+  const addresses = favoritesResult.rows.map(f => f.wallet_address.toLowerCase());
+  const dbWalletsResult = await db.query<WalletLeaderboardItem & { rank: number }>(dbWalletsQuery, [addresses]);
+  
+  // Create a map of address -> wallet data
+  const walletMap = new Map<string, WalletLeaderboardItem & { rank?: number }>();
+  for (const wallet of dbWalletsResult.rows) {
+    walletMap.set(wallet.address.toLowerCase(), wallet);
+  }
+  
+  // Build result in favorites order, including external addresses
+  const result: (WalletLeaderboardItem & { rank?: number })[] = [];
+  for (const fav of favoritesResult.rows) {
+    const address = fav.wallet_address.toLowerCase();
+    const dbWallet = walletMap.get(address);
+    
+    if (dbWallet) {
+      result.push(dbWallet);
+    } else {
+      // External address - return basic info
+      result.push({
+        id: null as unknown as number,
+        address: fav.wallet_address,
+        platform_id: 'hyperliquid',
+        platform_name: 'Hyperliquid',
+        twitter_handle: null,
+        label: null,
+        pnl_1d: 0,
+        pnl_7d: 0,
+        pnl_30d: 0,
+        win_rate_7d: 0,
+        win_rate_30d: 0,
+        trades_count_7d: 0,
+        trades_count_30d: 0,
+        total_volume_7d: 0,
+        total_volume_30d: 0,
+        last_trade_at: null,
+        calculated_at: null,
+        rank: undefined,
+      });
+    }
+  }
+  
+  return result;
 }
 

@@ -93,21 +93,22 @@ router.post('/check', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
-// Add to favorites
+// Add to favorites (supports any Ethereum address)
 router.post('/:address', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id;
     const { address } = req.params;
     
-    const success = await favoriteService.addFavoriteByAddress(userId, address);
-    
-    if (!success) {
-      res.status(404).json({
+    // Validate Ethereum address format
+    if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+      res.status(400).json({
         success: false,
-        error: 'Wallet not found',
+        error: 'Invalid Ethereum address format',
       });
       return;
     }
+    
+    await favoriteService.addFavoriteByAddress(userId, address);
     
     res.json({ success: true });
   } catch (error) {

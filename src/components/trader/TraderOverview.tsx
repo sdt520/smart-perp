@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import type { TraderDetail } from '../../services/api';
 import { useNotes } from '../../contexts/NotesContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useFavorites } from '../../contexts/FavoritesContext';
+import { LoginModal } from '../LoginModal';
 
 interface TraderOverviewProps {
   trader: TraderDetail;
@@ -42,13 +44,33 @@ export function TraderOverview({ trader }: TraderOverviewProps) {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [isFavoriting, setIsFavoriting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { isAuthenticated } = useAuth();
   const { getNote, saveNote, deleteNote } = useNotes();
+  const { isFavorited, toggleFavorite } = useFavorites();
   
   // 获取备注名，优先级：用户备注 > 系统标签 > 缩短地址
   const note = getNote(trader.address);
   const displayName = note || trader.label || shortenAddress(trader.address);
+  const favorited = isFavorited(trader.address);
+
+  const handleToggleFavorite = async () => {
+    if (!isAuthenticated) {
+      setShowLoginModal(true);
+      return;
+    }
+    
+    setIsFavoriting(true);
+    try {
+      await toggleFavorite(trader.address);
+    } catch (err) {
+      console.error('Failed to toggle favorite:', err);
+    } finally {
+      setIsFavoriting(false);
+    }
+  };
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -230,6 +252,36 @@ export function TraderOverview({ trader }: TraderOverviewProps) {
             </a>
           </div>
         </div>
+        
+        {/* Favorite Button */}
+        <button
+          onClick={handleToggleFavorite}
+          disabled={isFavoriting}
+          className={`p-2.5 rounded-xl transition-all duration-200 ${
+            favorited
+              ? 'bg-yellow-400/10 text-yellow-400 hover:bg-yellow-400/20'
+              : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)] hover:text-yellow-400 hover:bg-[var(--color-bg-secondary)]'
+          } ${isFavoriting ? 'opacity-50 cursor-wait' : ''}`}
+          title={favorited ? '取消收藏' : '收藏'}
+        >
+          {isFavoriting ? (
+            <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <svg
+              className="w-5 h-5"
+              fill={favorited ? 'currentColor' : 'none'}
+              stroke="currentColor"
+              strokeWidth={2}
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"
+              />
+            </svg>
+          )}
+        </button>
       </div>
 
       {/* Stats Grid */}
@@ -263,6 +315,12 @@ export function TraderOverview({ trader }: TraderOverviewProps) {
           * 带星号的指标为估算值，系统运行满 30 天后将显示真实数据
         </p>
       )}
+
+      {/* Login Modal */}
+      <LoginModal 
+        isOpen={showLoginModal} 
+        onClose={() => setShowLoginModal(false)} 
+      />
     </div>
   );
 }
