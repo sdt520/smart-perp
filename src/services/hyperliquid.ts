@@ -124,6 +124,7 @@ type PortfolioResponse = [PortfolioTimeframe, PortfolioTimeframeData][];
 export interface PortfolioPnlPoint {
   timestamp: number;
   pnl: number;
+  accountValue?: number;
 }
 
 export interface UserPortfolio {
@@ -163,9 +164,18 @@ export async function fetchPortfolioPnlHistory(address: string, timeframe: 'mont
       return [];
     }
 
+    // Create a map of timestamp -> accountValue for lookup
+    const accountValueMap = new Map<number, number>();
+    if (data.accountValueHistory) {
+      for (const [ts, val] of data.accountValueHistory) {
+        accountValueMap.set(ts, parseFloat(val));
+      }
+    }
+
     return data.pnlHistory.map(([timestamp, pnl]) => ({
       timestamp,
       pnl: parseFloat(pnl),
+      accountValue: accountValueMap.get(timestamp),
     }));
   } catch (err) {
     console.error('Error fetching portfolio PnL history:', err);

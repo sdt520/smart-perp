@@ -453,23 +453,49 @@ function calculateMaxDrawdown(history: TraderDetail['pnlHistory']): number {
   return Math.min(maxDrawdown, 100); // Cap at 100%
 }
 
-// Calculate Sharpe ratio (simplified)
-function calculateSharpeRatio(history: TraderDetail['pnlHistory']): number {
+// Calculate Sharpe ratio using daily returns (percentage-based)
+function calculateSharpeRatio(
+  history: TraderDetail['pnlHistory'], 
+  accountValues?: (number | undefined)[]
+): number {
   if (history.length < 2) return 0;
   
-  const dailyReturns = history.map(h => h.pnl);
-  const avgReturn = dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length;
+  // Calculate daily returns as percentages
+  const dailyReturns: number[] = [];
   
+  for (let i = 1; i < history.length; i++) {
+    const prevValue = accountValues?.[i - 1];
+    const currentPnl = history[i].pnl;
+    const prevPnl = history[i - 1].pnl;
+    const dailyPnl = currentPnl - prevPnl; // This is already the daily change in cumulative PnL
+    
+    // Calculate return based on account value if available
+    if (prevValue && prevValue > 0) {
+      // Daily return = daily PnL / account value at start of day
+      dailyReturns.push((dailyPnl / prevValue) * 100); // As percentage
+    } else {
+      // Fallback: use the daily PnL from history
+      const dailyPnlFromHistory = history[i].pnl - history[i - 1].cumulativePnl + history[i - 1].pnl;
+      // Skip if we can't calculate properly
+      if (history[i - 1].cumulativePnl !== 0) {
+        dailyReturns.push((history[i].pnl / Math.abs(history[i - 1].cumulativePnl)) * 100);
+      }
+    }
+  }
+  
+  if (dailyReturns.length < 2) return 0;
+  
+  const avgReturn = dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length;
   const variance = dailyReturns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / dailyReturns.length;
   const stdDev = Math.sqrt(variance);
   
-  if (stdDev === 0) return avgReturn > 0 ? 3 : -1;
+  if (stdDev === 0) return avgReturn > 0 ? 2 : 0;
   
-  // Annualized Sharpe (assuming 365 trading days)
+  // Annualized Sharpe (assuming 365 trading days, risk-free rate = 0 for simplicity)
   const sharpe = (avgReturn / stdDev) * Math.sqrt(365);
   
-  // Clamp to reasonable range
-  return Math.max(-3, Math.min(5, sharpe));
+  // Clamp to reasonable range (-3 to 4, typical for traders)
+  return Math.max(-3, Math.min(4, sharpe));
 }
 // Fetch trader detail by address
 export async function fetchTraderDetail(address: string): Promise<TraderDetail> {
@@ -497,16 +523,17 @@ export async function fetchTraderDetail(address: string): Promise<TraderDetail> 
 
     // Convert portfolio PnL history to our format
     let pnlHistory: TraderDetail['pnlHistory'];
+    let accountValues: (number | undefined)[] = [];
     let isEstimated = false;
     
     if (portfolioPnlHistory.length > 0) {
-      // Group by date and calculate cumulative PnL
-      const dailyMap = new Map<string, number>();
+      // Group by date and calculate cumulative PnL + account values
+      const dailyMap = new Map<string, { pnl: number; accountValue?: number }>();
       
       for (const point of portfolioPnlHistory) {
         const date = new Date(point.timestamp).toISOString().split('T')[0];
         // Portfolio API returns cumulative PnL, so we take the last value for each day
-        dailyMap.set(date, point.pnl);
+        dailyMap.set(date, { pnl: point.pnl, accountValue: point.accountValue });
       }
       
       // Convert to array sorted by date
@@ -514,9 +541,11 @@ export async function fetchTraderDetail(address: string): Promise<TraderDetail> 
       let prevCumulativePnl = 0;
       
       pnlHistory = sortedDates.map(date => {
-        const cumulativePnl = dailyMap.get(date) || 0;
+        const data = dailyMap.get(date);
+        const cumulativePnl = data?.pnl || 0;
         const dailyPnl = cumulativePnl - prevCumulativePnl;
         prevCumulativePnl = cumulativePnl;
+        accountValues.push(data?.accountValue);
         
         return {
           date,
@@ -532,7 +561,7 @@ export async function fetchTraderDetail(address: string): Promise<TraderDetail> 
 
     // Calculate max drawdown and Sharpe ratio from real data
     const maxDrawdown = calculateMaxDrawdown(pnlHistory);
-    const sharpeRatio = calculateSharpeRatio(pnlHistory);
+    const sharpeRatio = calculateSharpeRatio(pnlHistory, accountValues);
 
     return {
       address: wallet.address,
