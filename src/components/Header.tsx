@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { UserMenu } from './UserMenu';
 import { LoginModal } from './LoginModal';
 import { LanguageSwitcher } from './LanguageSwitcher';
@@ -19,8 +19,17 @@ const platforms: Platform[] = [
 
 export function Header() {
   const { t } = useLanguage();
+  const location = useLocation();
   const [selectedPlatform, setSelectedPlatform] = useState('hyperliquid');
   const [showLoginModal, setShowLoginModal] = useState(false);
+
+  // Check if current path matches the nav item
+  const isActive = (path: string) => {
+    if (path === '/') {
+      return location.pathname === '/' || location.pathname.startsWith('/trader/');
+    }
+    return location.pathname === path || location.pathname.startsWith(path + '/');
+  };
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur-xl bg-[var(--color-bg-primary)]/90 border-b border-[var(--color-border)]">
@@ -42,19 +51,31 @@ export function Header() {
           <nav className="flex items-center gap-1">
             <Link
               to="/"
-              className="px-3 py-1.5 rounded-lg text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]/50 transition-all"
+              className={`px-3 py-1.5 rounded-lg text-sm transition-all ${
+                isActive('/') 
+                  ? 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] font-medium' 
+                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]/50'
+              }`}
             >
               {t('header.walletList')}
             </Link>
             <Link
               to="/flow"
-              className="px-3 py-1.5 rounded-lg text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]/50 transition-all"
+              className={`px-3 py-1.5 rounded-lg text-sm transition-all ${
+                isActive('/flow') 
+                  ? 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] font-medium' 
+                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]/50'
+              }`}
             >
               {t('header.tradeFlow')}
             </Link>
             <Link
               to="/favorites"
-              className="px-3 py-1.5 rounded-lg text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]/50 transition-all"
+              className={`px-3 py-1.5 rounded-lg text-sm transition-all ${
+                isActive('/favorites') 
+                  ? 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] font-medium' 
+                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]/50'
+              }`}
             >
               {t('header.telegramNotify')}
             </Link>
