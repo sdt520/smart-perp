@@ -47,5 +47,14 @@ export const noteService = {
     );
     return (result.rowCount ?? 0) > 0;
   },
+
+  // 获取单个备注
+  async getNote(userId: number, walletAddress: string): Promise<string | null> {
+    const result = await db.query<NoteRow>(
+      `SELECT note FROM wallet_notes WHERE user_id = $1 AND wallet_address = $2`,
+      [userId, walletAddress.toLowerCase()]
+    );
+    return result.rows.length > 0 ? result.rows[0].note : null;
+  },
 };
 

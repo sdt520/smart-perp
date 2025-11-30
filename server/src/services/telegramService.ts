@@ -241,15 +241,34 @@ export async function sendTradeNotification(
   
   if (usersToNotify.length === 0) return 0;
 
-  // 格式化消息
+  // 格式化基本信息
   const actionEmoji = event.action.includes('long') ? '🟢' : '🔴';
   const actionText = formatActionText(event.action);
   const shortAddress = `${traderAddress.slice(0, 6)}...${traderAddress.slice(-4)}`;
-  
-  const message = `
+
+  let sentCount = 0;
+  for (const user of usersToNotify) {
+    // 检查是否满足最小仓位要求
+    if (user.minPositionUsd > 0 && event.sizeUsd < user.minPositionUsd) {
+      continue;
+    }
+
+    // 获取用户对该地址的备注
+    let noteText = '';
+    try {
+      const { noteService } = await import('./noteService.js');
+      const note = await noteService.getNote(user.userId, traderAddress);
+      if (note) {
+        noteText = ` 📝 <b>${note}</b>`;
+      }
+    } catch (e) {
+      // 忽略错误，继续发送通知
+    }
+    
+    const message = `
 ${actionEmoji} <b>Smart Money Alert</b>
 
-📍 <b>Trader:</b> <code>${shortAddress}</code>${event.traderRank ? ` (Rank #${event.traderRank})` : ''}
+📍 <b>Trader:</b> <code>${shortAddress}</code>${noteText}${event.traderRank ? ` (Rank #${event.traderRank})` : ''}
 💰 <b>Action:</b> ${actionText}
 🪙 <b>Token:</b> ${event.symbol}
 📊 <b>Size:</b> $${formatNumber(event.sizeUsd)}
@@ -259,12 +278,6 @@ ${actionEmoji} <b>Smart Money Alert</b>
 🔗 <a href="https://smart-perp.xyz/trader/${traderAddress}">View Trader</a>
 `.trim();
 
-  let sentCount = 0;
-  for (const user of usersToNotify) {
-    // 检查是否满足最小仓位要求
-    if (user.minPositionUsd > 0 && event.sizeUsd < user.minPositionUsd) {
-      continue;
-    }
     const sent = await sendTelegramMessage(user.chatId, message);
     if (sent) sentCount++;
   }
