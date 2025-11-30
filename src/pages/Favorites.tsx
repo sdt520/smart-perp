@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useFavorites } from '../contexts/FavoritesContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { FavoriteButton } from '../components/FavoriteButton';
 import { WalletAddress } from '../components/WalletAddress';
 
@@ -164,6 +165,7 @@ function NotificationToggle({
 }
 
 export function Favorites() {
+  const { t } = useLanguage();
   const { isAuthenticated, isLoading: authLoading, getAuthHeaders } = useAuth();
   useFavorites(); // Keep context subscription for updates
   const navigate = useNavigate();
@@ -460,7 +462,7 @@ export function Favorites() {
               <circle cx="12" cy="12" r="10" strokeOpacity="0.2" />
               <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
             </svg>
-            <span>正在加载收藏...</span>
+            <span>{t('common.loading')}</span>
           </div>
         </div>
       ) : wallets.length === 0 ? (
@@ -482,13 +484,13 @@ export function Favorites() {
             还没有收藏任何钱包
           </h3>
           <p className="text-sm text-[var(--color-text-muted)] mb-6">
-            在排行榜中点击钱包地址左侧的星星图标即可收藏
+            {t('favorites.emptyHint')}
           </p>
           <Link
             to="/"
             className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary)]/80 text-white rounded-lg transition-colors text-sm font-medium"
           >
-            浏览排行榜
+            {t('home.backToLeaderboard')}
           </Link>
         </div>
       ) : (

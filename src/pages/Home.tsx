@@ -108,16 +108,16 @@ export function Home() {
       {/* API Status Banner */}
       {isApiAvailable === false && (
         <div className="mb-8 px-4 py-3 rounded-xl bg-amber-500/5 border border-amber-500/20 text-amber-400/90 text-sm animate-fade-in">
-          <span className="font-medium">演示模式</span>
+          <span className="font-medium">{t('home.mockData')}</span>
           <span className="mx-2 opacity-40">·</span>
-          后端 API 未连接，当前显示模拟数据
+          {t('home.mockDataHint')}
         </div>
       )}
 
       {/* Error Banner */}
       {error && (
         <div className="mb-8 px-4 py-3 rounded-xl bg-red-500/5 border border-red-500/20 text-red-400/90 text-sm animate-fade-in">
-          <span className="font-medium">错误</span>
+          <span className="font-medium">{t('home.error')}</span>
           <span className="mx-2 opacity-40">·</span>
           {error}
         </div>
@@ -126,11 +126,11 @@ export function Home() {
       {/* Page Title */}
       <div className="mb-10">
         <h2 className="text-3xl font-semibold tracking-tight mb-3">
-          <span className="text-[var(--color-text-primary)]">聪明钱</span>
-          <span className="text-[var(--color-text-tertiary)]">排行榜</span>
+          <span className="text-[var(--color-text-primary)]">{t('home.smartMoney')}</span>
+          <span className="text-[var(--color-text-tertiary)]"> {t('home.leaderboard')}</span>
         </h2>
         <p className="text-[var(--color-text-tertiary)] text-base">
-          追踪 Hyperliquid 上最成功的交易者，学习他们的交易策略
+          {t('home.description')}
         </p>
       </div>
 
@@ -139,21 +139,21 @@ export function Home() {
         {selectedCoin && coinStats ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="glass-card rounded-2xl p-6 animate-fade-in">
-              <p className="text-sm text-[var(--color-text-tertiary)] mb-2">{selectedCoin} 交易者</p>
+              <p className="text-sm text-[var(--color-text-tertiary)] mb-2">{selectedCoin} {t('home.coinTraders')}</p>
               <p className="text-2xl font-semibold font-mono text-[var(--color-text-primary)]">{coinStats.totalTraders}</p>
             </div>
             <div className="glass-card rounded-2xl p-6 animate-fade-in">
-              <p className="text-sm text-[var(--color-text-tertiary)] mb-2">30D 总 PnL</p>
+              <p className="text-sm text-[var(--color-text-tertiary)] mb-2">{t('home.totalPnl30d')}</p>
               <p className={`text-2xl font-semibold font-mono ${coinStats.totalPnl30d >= 0 ? 'text-[var(--color-accent-primary)]' : 'text-[var(--color-accent-negative)]'}`}>
                 ${(coinStats.totalPnl30d / 1000000).toFixed(2)}M
               </p>
             </div>
             <div className="glass-card rounded-2xl p-6 animate-fade-in">
-              <p className="text-sm text-[var(--color-text-tertiary)] mb-2">平均胜率</p>
+              <p className="text-sm text-[var(--color-text-tertiary)] mb-2">{t('home.avgWinRate')}</p>
               <p className="text-2xl font-semibold font-mono text-[var(--color-text-primary)]">{coinStats.avgWinRate.toFixed(1)}%</p>
             </div>
             <div className="glass-card rounded-2xl p-6 animate-fade-in">
-              <p className="text-sm text-[var(--color-text-tertiary)] mb-2">30天成交量</p>
+              <p className="text-sm text-[var(--color-text-tertiary)] mb-2">{t('home.volume30d')}</p>
               <p className="text-2xl font-semibold font-mono text-[var(--color-text-primary)]">${formatLargeNumber(coinStats.totalVolume)}</p>
             </div>
           </div>
@@ -170,12 +170,12 @@ export function Home() {
               {selectedCoin ? `${selectedCoin} ${t('home.traders')}` : t('home.topSmartMoney')}
               {!selectedCoin && total > 0 && (
                 <span className="ml-2 text-sm font-normal text-[var(--color-text-muted)]">
-                  {total.toLocaleString()} 个
+                  {total.toLocaleString()} {t('home.count')}
                 </span>
               )}
               {selectedCoin && coinTotal > 0 && (
                 <span className="ml-2 text-sm font-normal text-[var(--color-text-muted)]">
-                  {coinTotal.toLocaleString()} 个
+                  {coinTotal.toLocaleString()} {t('home.count')}
                 </span>
               )}
             </h3>
@@ -229,10 +229,10 @@ export function Home() {
               }`} />
               <span className="text-[var(--color-text-muted)] text-xs">
                 {isApiAvailable === null 
-                  ? '检测中' 
+                  ? t('common.loading')
                   : isApiAvailable 
-                    ? '实时数据' 
-                    : '模拟数据'}
+                    ? t('home.realtimeData')
+                    : t('home.mockData')}
               </span>
             </div>
           </div>

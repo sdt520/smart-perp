@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface PnlDataPoint {
   date: string;
@@ -30,6 +31,7 @@ function formatPnL(value: number): string {
 }
 
 export function PnlChart({ data }: PnlChartProps) {
+  const { t } = useLanguage();
   const [timeRange, setTimeRange] = useState<TimeRange>('30d');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
@@ -92,7 +94,7 @@ export function PnlChart({ data }: PnlChartProps) {
   if (!chartData || filteredData.length === 0) {
     return (
       <div className="glass-card rounded-2xl p-6 flex items-center justify-center">
-        <p className="text-[var(--color-text-muted)]">暂无收益数据</p>
+        <p className="text-[var(--color-text-muted)]">{t('detail.noPnlData')}</p>
       </div>
     );
   }

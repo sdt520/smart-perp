@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useLanguage } from '../contexts/LanguageContext';
-import { type Language, languageNames } from '../i18n/translations';
+import type { Language } from '../i18n/translations';
+import { languageNames } from '../i18n/translations';
 
 const languages: Language[] = ['en', 'zh', 'ja', 'ko', 'ru'];
 
@@ -9,6 +10,7 @@ export function LanguageSwitcher() {
   const { language, setLanguage } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
   useEffect(() => {
@@ -25,26 +27,43 @@ export function LanguageSwitcher() {
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (buttonRef.current && !buttonRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      // Check if click is outside both button and dropdown
+      if (
+        buttonRef.current && 
+        !buttonRef.current.contains(target) &&
+        dropdownRef.current &&
+        !dropdownRef.current.contains(target)
+      ) {
         setIsOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
+    
+    if (isOpen) {
+      // Use setTimeout to avoid immediate closure
+      setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+      }, 0);
+    }
+    
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [isOpen]);
+
+  const handleSelectLanguage = (lang: Language) => {
+    setLanguage(lang);
+    setIsOpen(false);
+  };
 
   const dropdown = isOpen && createPortal(
     <div
+      ref={dropdownRef}
       style={dropdownStyle}
       className="bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-lg shadow-xl overflow-hidden min-w-[140px]"
     >
       {languages.map((lang) => (
         <button
           key={lang}
-          onClick={() => {
-            setLanguage(lang);
-            setIsOpen(false);
-          }}
+          onClick={() => handleSelectLanguage(lang)}
           className={`w-full px-4 py-2.5 text-left text-sm transition-colors flex items-center gap-2 ${
             language === lang
               ? 'bg-[var(--color-accent-primary)]/10 text-[var(--color-accent-primary)]'

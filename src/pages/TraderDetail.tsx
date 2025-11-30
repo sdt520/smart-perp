@@ -5,10 +5,12 @@ import { PnlChart } from '../components/trader/PnlChart';
 import { PositionsTable } from '../components/trader/PositionsTable';
 import { TradesTable } from '../components/trader/TradesTable';
 import { fetchTraderDetail, fetchTraderPositions, fetchTraderTrades, type TraderDetail as TraderDetailType, type Position, type Trade } from '../services/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 type TabType = 'positions' | 'trades';
 
 export function TraderDetail() {
+  const { t } = useLanguage();
   const { address } = useParams<{ address: string }>();
   const [trader, setTrader] = useState<TraderDetailType | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
@@ -34,7 +36,7 @@ export function TraderDetail() {
         setTrades(tradesData);
       } catch (err) {
         console.error('Error loading trader data:', err);
-        setError('无法加载交易者数据');
+        setError(t('flow.loadFailed'));
       } finally {
         setLoading(false);
       }
@@ -51,7 +53,7 @@ export function TraderDetail() {
             <circle cx="12" cy="12" r="10" strokeOpacity="0.2" />
             <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
           </svg>
-          <span>正在加载交易者数据...</span>
+          <span>{t('common.loading')}</span>
         </div>
       </div>
     );
@@ -65,12 +67,12 @@ export function TraderDetail() {
             <circle cx="12" cy="12" r="10" />
             <path d="M12 8v4M12 16h.01" />
           </svg>
-          <p className="text-lg mb-2">{error || '交易者不存在'}</p>
+          <p className="text-lg mb-2">{error || t('detail.traderNotFound')}</p>
           <Link 
             to="/" 
             className="text-sm text-[var(--color-accent-primary)] hover:underline"
           >
-            返回排行榜
+            {t('home.backToLeaderboard')}
           </Link>
         </div>
       </div>
@@ -78,8 +80,8 @@ export function TraderDetail() {
   }
 
   const tabs: { id: TabType; label: string }[] = [
-    { id: 'positions', label: '当前持仓' },
-    { id: 'trades', label: '交易记录' },
+    { id: 'positions', label: t('home.currentPositions') },
+    { id: 'trades', label: t('detail.history') },
   ];
 
   return (
@@ -93,7 +95,7 @@ export function TraderDetail() {
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M15 18l-6-6 6-6" />
           </svg>
-          返回排行榜
+          {t('home.backToLeaderboard')}
         </Link>
       </div>
 
@@ -140,7 +142,7 @@ export function TraderDetail() {
         {/* Tab Content */}
         <div className="p-0">
           {activeTab === 'positions' && (
-            <PositionsTable positions={positions} title="当前持仓" />
+            <PositionsTable positions={positions} title={t('home.currentPositions')} />
           )}
           {activeTab === 'trades' && (
             <TradesTable trades={trades} />

@@ -1,4 +1,5 @@
 import type { Trade } from '../../services/api';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface TradesTableProps {
   trades: Trade[];
@@ -32,6 +33,8 @@ function formatTime(timestamp: string): string {
 }
 
 export function TradesTable({ trades }: TradesTableProps) {
+  const { t } = useLanguage();
+  
   if (trades.length === 0) {
     return (
       <div className="p-12 text-center">
@@ -39,7 +42,7 @@ export function TradesTable({ trades }: TradesTableProps) {
           <svg className="w-10 h-10 mx-auto mb-4 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
           </svg>
-          <p className="text-sm">暂无交易记录</p>
+          <p className="text-sm">{t('detail.noTradeHistory')}</p>
         </div>
       </div>
     );

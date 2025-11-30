@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { CoinWallet } from '../services/api';
 import { WalletAddress } from './WalletAddress';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface CoinWalletTableProps {
   wallets: CoinWallet[];
@@ -110,6 +111,7 @@ function SortIcon({ direction }: { direction: 'asc' | 'desc' | null }) {
 }
 
 export function CoinWalletTable({ wallets, coin, loading, startIndex = 0 }: CoinWalletTableProps) {
+  const { t } = useLanguage();
   const [sortConfig, setSortConfig] = useState<{ field: SortField; direction: 'asc' | 'desc' }>({
     field: 'pnl_30d',
     direction: 'desc',
@@ -140,7 +142,7 @@ export function CoinWalletTable({ wallets, coin, loading, startIndex = 0 }: Coin
               <circle cx="12" cy="12" r="10" strokeOpacity="0.2" />
               <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
             </svg>
-            <span>正在加载 {coin} 交易者数据...</span>
+            <span>{t('common.loading')}</span>
           </div>
         </div>
       </div>
@@ -156,7 +158,7 @@ export function CoinWalletTable({ wallets, coin, loading, startIndex = 0 }: Coin
               <circle cx="12" cy="12" r="10" />
               <path d="M12 8v4M12 16h.01" />
             </svg>
-            <p className="text-base">暂无 {coin} 的交易数据</p>
+            <p className="text-base">{t('detail.noDataFor')} {coin}</p>
             <p className="text-sm mt-2 opacity-60">等待 Worker 同步更多数据</p>
           </div>
         </div>

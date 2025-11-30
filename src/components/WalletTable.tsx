@@ -158,7 +158,7 @@ export function WalletTable({ wallets, loading, sortConfig, onSort, onLoginRequi
               <circle cx="12" cy="12" r="10" strokeOpacity="0.2" />
               <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
             </svg>
-            <span>正在加载钱包数据...</span>
+            <span>{t('common.loading')}</span>
           </div>
         </div>
       </div>
@@ -208,7 +208,7 @@ export function WalletTable({ wallets, loading, sortConfig, onSort, onLoginRequi
                       address={wallet.address} 
                       onLoginRequired={onLoginRequired}
                     />
-                    <div className="w-7 h-7 rounded-lg bg-[var(--color-bg-tertiary)] flex items-center justify-center text-xs font-medium text-[var(--color-text-tertiary)]" title={wallet.rank ? `Rank #${wallet.rank}` : '不在排行榜中'}>
+                    <div className="w-7 h-7 rounded-lg bg-[var(--color-bg-tertiary)] flex items-center justify-center text-xs font-medium text-[var(--color-text-tertiary)]" title={wallet.rank ? `Rank #${wallet.rank}` : t('home.notInLeaderboard')}>
                       {wallet.rank ?? '-'}
                     </div>
                     <div className="flex items-center gap-2">

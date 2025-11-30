@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { Coin } from '../services/api';
 import { fetchCoins } from '../services/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface CoinSelectorProps {
   selectedCoin: string | null;
@@ -9,6 +10,7 @@ interface CoinSelectorProps {
 }
 
 export function CoinSelector({ selectedCoin, onSelectCoin }: CoinSelectorProps) {
+  const { t } = useLanguage();
   const [coins, setCoins] = useState<Coin[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
@@ -65,7 +67,7 @@ export function CoinSelector({ selectedCoin, onSelectCoin }: CoinSelectorProps) 
         {selectedCoin ? (
           <span className="font-mono">{selectedCoin}</span>
         ) : (
-          <span>筛选代币</span>
+          <span>{t('home.filterCoin')}</span>
         )}
         <svg
           className={`w-4 h-4 opacity-50 transition-transform ${isOpen ? 'rotate-180' : ''}`}
@@ -100,7 +102,7 @@ export function CoinSelector({ selectedCoin, onSelectCoin }: CoinSelectorProps) 
             <div className="p-2.5 border-b border-[var(--color-border)]">
               <input
                 type="text"
-                placeholder="搜索代币..."
+                placeholder={t('home.searchCoin')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full px-3 py-2 bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] transition-all hover:border-[var(--color-border-hover)]"
@@ -133,7 +135,7 @@ export function CoinSelector({ selectedCoin, onSelectCoin }: CoinSelectorProps) 
                     <circle cx="12" cy="12" r="10" strokeOpacity="0.2" />
                     <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
                   </svg>
-                  加载中...
+                  {t('common.loading')}
                 </div>
               ) : filteredCoins.length === 0 ? (
                 <div className="px-4 py-6 text-center text-[var(--color-text-muted)] text-sm">

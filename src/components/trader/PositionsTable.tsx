@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import type { Position } from '../../services/api';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface PositionsTableProps {
   positions: Position[];
@@ -54,6 +55,7 @@ function SortIcon({ field, currentField, direction }: {
 }
 
 export function PositionsTable({ positions, title, showPnl = false }: PositionsTableProps) {
+  const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortField, setSortField] = useState<SortField | null>('positionValue');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -128,7 +130,7 @@ export function PositionsTable({ positions, title, showPnl = false }: PositionsT
             <line x1="3" y1="9" x2="21" y2="9" />
             <line x1="9" y1="21" x2="9" y2="9" />
           </svg>
-          <p className="text-sm">暂无{title}数据</p>
+          <p className="text-sm">{t('detail.noPositions')}</p>
         </div>
       </div>
     );
@@ -152,7 +154,7 @@ export function PositionsTable({ positions, title, showPnl = false }: PositionsT
           </svg>
           <input
             type="text"
-            placeholder="搜索代币..."
+            placeholder={t('home.searchCoin')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-3 py-2 bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] transition-all focus:outline-none focus:border-[var(--color-accent-primary)]/50"

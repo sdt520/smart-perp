@@ -4,6 +4,7 @@ import { CoinSelector } from '../components/CoinSelector';
 import { useFlowWebSocket, type FlowEvent } from '../hooks/useFlowWebSocket';
 import { useAuth } from '../contexts/AuthContext';
 import { useFavorites } from '../contexts/FavoritesContext';
+import { useLanguage } from '../contexts/LanguageContext';
 
 // Types
 interface TradeEvent {
@@ -33,29 +34,37 @@ interface TokenOverview {
   uniqueTraders24h: number;
 }
 
-// Constants
-const TIME_RANGES = [
-  { value: '1h', label: '1小时' },
-  { value: '4h', label: '4小时' },
-  { value: '24h', label: '24小时' },
-];
+// Constants - these will be translated inside the component
 const ADDRESS_POOLS = [
   { value: 50, label: 'Top 50' },
   { value: 100, label: 'Top 100' },
   { value: 500, label: 'Top 500' },
 ];
-const MIN_SIZES = [
-  { value: 0, label: '全部' },
-  { value: 10000, label: '≥ $10K' },
-  { value: 50000, label: '≥ $50K' },
-  { value: 100000, label: '≥ $100K' },
-];
-const DIRECTIONS = [
-  { value: 'all', label: '全部' },
-  { value: 'long', label: '只看多单' },
-  { value: 'short', label: '只看空单' },
-  { value: 'reversal', label: '只看反转' },
-];
+
+// Helper to get translated options
+function getTimeRanges(t: (key: string) => string) {
+  return [
+    { value: '1h', label: t('flow.1hour') },
+    { value: '4h', label: t('flow.4hours') },
+    { value: '24h', label: t('flow.24hours') },
+  ];
+}
+function getMinSizes(t: (key: string) => string) {
+  return [
+    { value: 0, label: t('flow.all') },
+    { value: 10000, label: '≥ $10K' },
+    { value: 50000, label: '≥ $50K' },
+    { value: 100000, label: '≥ $100K' },
+  ];
+}
+function getDirections(t: (key: string) => string) {
+  return [
+    { value: 'all', label: t('flow.all') },
+    { value: 'long', label: t('flow.longOnly') },
+    { value: 'short', label: t('flow.shortOnly') },
+    { value: 'reversal', label: t('flow.reversalOnly') },
+  ];
+}
 
 const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
@@ -108,17 +117,17 @@ function getActionEmoji(action: TradeEvent['action']): string {
   }
 }
 
-function getActionText(action: TradeEvent['action']): string {
+function getActionText(action: TradeEvent['action'], t: (key: string) => string): string {
   switch (action) {
-    case 'open_long': return '开多';
-    case 'open_short': return '开空';
-    case 'close_long': return '平多';
-    case 'close_short': return '平空';
-    case 'add_long': return '加多';
-    case 'add_short': return '加空';
-    case 'reduce_long': return '减多';
-    case 'reduce_short': return '减空';
-    default: return '交易';
+    case 'open_long': return t('action.openLong');
+    case 'open_short': return t('action.openShort');
+    case 'close_long': return t('action.closeLong');
+    case 'close_short': return t('action.closeShort');
+    case 'add_long': return t('action.addLong');
+    case 'add_short': return t('action.addShort');
+    case 'reduce_long': return t('action.reduceLong');
+    case 'reduce_short': return t('action.reduceShort');
+    default: return action;
   }
 }
 
@@ -163,40 +172,46 @@ function FilterSelect({
 
 // Token Overview Component
 function TokenOverviewCard({ overview, coin }: { overview: TokenOverview | null; coin: string | null }) {
+  const { t } = useLanguage();
+  
   if (!overview || !coin) {
     return (
       <div className="glass-card rounded-xl p-4">
         <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-3">
-          代币概览
+          {t('flow.tokenOverview')}
         </h3>
         <p className="text-sm text-[var(--color-text-muted)]">
-          请选择一个代币查看概览
+          {t('flow.selectCoin')}
         </p>
       </div>
     );
   }
 
   const isNetLong = overview.netLongShort24h > 0;
-  const directionText = overview.topHoldersDirection === 'long' ? '偏多' : overview.topHoldersDirection === 'short' ? '偏空' : '中性';
+  const directionText = overview.topHoldersDirection === 'long' 
+    ? t('flow.biasLong') 
+    : overview.topHoldersDirection === 'short' 
+      ? t('flow.biasShort') 
+      : t('flow.neutral');
 
   return (
     <div className="glass-card rounded-xl p-4">
       <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-3">
-        {coin} 概览 <span className="text-xs text-[var(--color-text-muted)]">(24h)</span>
+        {coin} {t('flow.overview')} <span className="text-xs text-[var(--color-text-muted)]">(24h)</span>
       </h3>
       
       <div className="space-y-3">
         {/* Net Position */}
         <div className="flex items-center justify-between">
-          <span className="text-xs text-[var(--color-text-muted)]">聪明钱净头寸</span>
+          <span className="text-xs text-[var(--color-text-muted)]">{t('flow.smartMoneyNetPosition')}</span>
           <span className={`text-sm font-mono font-medium ${isNetLong ? 'text-[var(--color-accent-primary)]' : 'text-[var(--color-accent-negative)]'}`}>
-            {isNetLong ? '净多' : '净空'} ${formatNumber(Math.abs(overview.netLongShort24h))}
+            {isNetLong ? t('flow.netLong') : t('flow.netShort')} ${formatNumber(Math.abs(overview.netLongShort24h))}
           </span>
         </div>
 
         {/* Direction */}
         <div className="flex items-center justify-between">
-          <span className="text-xs text-[var(--color-text-muted)]">Top500 持仓方向</span>
+          <span className="text-xs text-[var(--color-text-muted)]">{t('flow.positionDirection')}</span>
           <span className={`text-sm font-medium ${
             overview.topHoldersDirection === 'long' 
               ? 'text-[var(--color-accent-primary)]' 
@@ -210,7 +225,7 @@ function TokenOverviewCard({ overview, coin }: { overview: TokenOverview | null;
 
         {/* Volume */}
         <div className="flex items-center justify-between">
-          <span className="text-xs text-[var(--color-text-muted)]">聪明钱成交量</span>
+          <span className="text-xs text-[var(--color-text-muted)]">{t('flow.smartMoneyVolume')}</span>
           <span className="text-sm font-mono text-[var(--color-text-primary)]">
             ${formatNumber(overview.volume24h)}
           </span>
@@ -218,7 +233,7 @@ function TokenOverviewCard({ overview, coin }: { overview: TokenOverview | null;
 
         {/* Trades */}
         <div className="flex items-center justify-between">
-          <span className="text-xs text-[var(--color-text-muted)]">交易次数 / 人数</span>
+          <span className="text-xs text-[var(--color-text-muted)]">{t('flow.tradesCount')}</span>
           <span className="text-sm font-mono text-[var(--color-text-primary)]">
             {overview.tradesCount24h.toLocaleString()} / {overview.uniqueTraders24h}
           </span>
@@ -230,6 +245,7 @@ function TokenOverviewCard({ overview, coin }: { overview: TokenOverview | null;
 
 // Trade Event Card Component
 function TradeEventCard({ event }: { event: TradeEvent }) {
+  const { t } = useLanguage();
   const positionChange = event.positionAfter - event.positionBefore;
   const isPositionIncrease = positionChange > 0;
 
@@ -260,7 +276,7 @@ function TradeEventCard({ event }: { event: TradeEvent }) {
           {event.label || shortenAddress(event.address)}
         </Link>
         <span className="text-xs text-[var(--color-text-muted)]">
-          胜率 {event.winRate30d.toFixed(0)}%
+          {t('flow.winRate')} {event.winRate30d.toFixed(0)}%
         </span>
       </div>
 
@@ -269,7 +285,7 @@ function TradeEventCard({ event }: { event: TradeEvent }) {
         <span className="text-lg">{getActionEmoji(event.action)}</span>
         <div>
           <span className={`font-medium ${getActionColor(event.action)}`}>
-            {getActionText(event.action)}
+            {getActionText(event.action, t)}
           </span>
           <span className="text-[var(--color-text-primary)] ml-2">
             {event.coin}-PERP
@@ -288,7 +304,7 @@ function TradeEventCard({ event }: { event: TradeEvent }) {
 
       {/* Position Change */}
       <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] pl-8">
-        <span>当前 {event.coin} 仓位:</span>
+        <span>{t('flow.currentPosition')} {event.coin}:</span>
         <span className="font-mono">${formatNumber(Math.abs(event.positionBefore))}</span>
         <span>→</span>
         <span className={`font-mono ${isPositionIncrease ? 'text-[var(--color-accent-primary)]' : 'text-[var(--color-accent-negative)]'}`}>
@@ -296,7 +312,7 @@ function TradeEventCard({ event }: { event: TradeEvent }) {
         </span>
         {event.coinWinRate7d !== undefined && (
           <span className="ml-2 text-xs">
-            (7D胜率 {event.coinWinRate7d.toFixed(0)}%)
+            (7D {t('flow.winRate')} {event.coinWinRate7d.toFixed(0)}%)
           </span>
         )}
       </div>
@@ -306,6 +322,14 @@ function TradeEventCard({ event }: { event: TradeEvent }) {
 
 // Main Component
 export function TokenFlow() {
+  // Language
+  const { t } = useLanguage();
+  
+  // Translated options
+  const TIME_RANGES = useMemo(() => getTimeRanges(t), [t]);
+  const MIN_SIZES = useMemo(() => getMinSizes(t), [t]);
+  const DIRECTIONS = useMemo(() => getDirections(t), [t]);
+  
   // Auth & Favorites
   const { isAuthenticated } = useAuth();
   const { favorites } = useFavorites();
@@ -420,7 +444,7 @@ export function TokenFlow() {
       }
     } catch (err) {
       console.error('Error fetching token flow data:', err);
-      setError('加载数据失败，请稍后重试');
+      setError(t('flow.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -476,8 +500,7 @@ export function TokenFlow() {
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
           <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">
-            聪明钱交易流
-            <span className="text-[var(--color-text-tertiary)] font-normal ml-2">Smart Money Flow</span>
+            {t('flow.title')}
           </h1>
           {/* WebSocket 状态指示器 */}
           <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs ${
@@ -486,11 +509,11 @@ export function TokenFlow() {
               : 'bg-[var(--color-accent-negative)]/10 text-[var(--color-accent-negative)]'
           }`}>
             <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-[var(--color-accent-primary)] animate-pulse' : 'bg-[var(--color-accent-negative)]'}`} />
-            {isConnected ? '实时连接' : '连接中...'}
+            {isConnected ? t('flow.realtime') : t('flow.connecting')}
           </div>
         </div>
         <p className="text-[var(--color-text-muted)]">
-          实时追踪顶级交易者在各代币上的交易动态
+          {t('flow.description')}
         </p>
       </div>
 
@@ -499,7 +522,7 @@ export function TokenFlow() {
         <div className="w-72 flex-shrink-0 space-y-6">
           {/* Coin Selector */}
           <div className="glass-card rounded-xl p-4 overflow-visible">
-            <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-3">选择代币</h3>
+            <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-3">{t('home.filterCoin')}</h3>
             <div className="relative z-50">
               <CoinSelector 
                 selectedCoin={selectedCoin} 
@@ -510,7 +533,7 @@ export function TokenFlow() {
 
           {/* Data Source Selection */}
           <div className="glass-card rounded-xl p-4">
-            <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-3">数据来源</h3>
+            <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-3">{t('flow.dataSource')}</h3>
             <div className="space-y-2">
               <label className="flex items-center gap-3 cursor-pointer group">
                 <input
@@ -521,7 +544,7 @@ export function TokenFlow() {
                   className="w-4 h-4 accent-[var(--color-accent-primary)]"
                 />
                 <span className={`text-sm ${addressSource === 'top500' ? 'text-[var(--color-text-primary)]' : 'text-[var(--color-text-muted)]'} group-hover:text-[var(--color-text-primary)] transition-colors`}>
-                  Top 聪明钱
+                  {t('flow.topSmartMoney')}
                 </span>
               </label>
               <label className={`flex items-center gap-3 ${isAuthenticated ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'} group`}>
@@ -534,8 +557,8 @@ export function TokenFlow() {
                   className="w-4 h-4 accent-[var(--color-accent-primary)]"
                 />
                 <span className={`text-sm ${addressSource === 'favorites' ? 'text-[var(--color-text-primary)]' : 'text-[var(--color-text-muted)]'} ${isAuthenticated ? 'group-hover:text-[var(--color-text-primary)]' : ''} transition-colors`}>
-                  我的收藏
-                  {!isAuthenticated && <span className="text-xs ml-1">(需登录)</span>}
+                  {t('flow.myFavorites')}
+                  {!isAuthenticated && <span className="text-xs ml-1">{t('flow.needLogin')}</span>}
                   {isAuthenticated && favorites.size > 0 && <span className="text-xs ml-1 text-[var(--color-text-muted)]">({favorites.size})</span>}
                 </span>
               </label>
@@ -544,10 +567,10 @@ export function TokenFlow() {
 
           {/* Filters */}
           <div className="glass-card rounded-xl p-4 space-y-4">
-            <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-1">筛选条件</h3>
+            <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-1">{t('flow.filters')}</h3>
             
             <FilterSelect
-              label="时间范围"
+              label={t('flow.timeRange')}
               value={timeRange}
               options={TIME_RANGES}
               onChange={(v) => setTimeRange(v as string)}
@@ -555,7 +578,7 @@ export function TokenFlow() {
             
             {addressSource === 'top500' && (
               <FilterSelect
-                label="地址池"
+                label={t('flow.addressPool')}
                 value={addressPool}
                 options={ADDRESS_POOLS}
                 onChange={(v) => setAddressPool(Number(v))}
@@ -563,14 +586,14 @@ export function TokenFlow() {
             )}
             
             <FilterSelect
-              label="最小仓位"
+              label={t('flow.minPosition')}
               value={minSize}
               options={MIN_SIZES}
               onChange={(v) => setMinSize(Number(v))}
             />
             
             <FilterSelect
-              label="方向"
+              label={t('flow.direction')}
               value={direction}
               options={DIRECTIONS}
               onChange={(v) => setDirection(v as string)}
@@ -588,22 +611,22 @@ export function TokenFlow() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
               <div className="flex items-center gap-3">
                 <h3 className="text-sm font-medium text-[var(--color-text-primary)]">
-                  实时交易流
+                  {t('flow.realtimeFeed')}
                 </h3>
                 <span className="text-xs text-[var(--color-text-muted)]">
-                  {filteredEvents.length} 条记录
+                  {filteredEvents.length} {t('home.records')}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 {isConnected ? (
                   <>
                     <div className="w-2 h-2 rounded-full bg-[var(--color-accent-primary)] animate-pulse"></div>
-                    <span className="text-xs text-[var(--color-text-muted)]">实时推送中</span>
+                    <span className="text-xs text-[var(--color-text-muted)]">{t('flow.realtimePush')}</span>
                   </>
                 ) : (
                   <>
                     <div className="w-2 h-2 rounded-full bg-[var(--color-accent-negative)]"></div>
-                    <span className="text-xs text-[var(--color-text-muted)]">连接中...</span>
+                    <span className="text-xs text-[var(--color-text-muted)]">{t('flow.connecting')}...</span>
                   </>
                 )}
               </div>
@@ -634,7 +657,7 @@ export function TokenFlow() {
                     onClick={fetchData}
                     className="mt-4 px-4 py-2 bg-[var(--color-bg-tertiary)] rounded-lg text-sm hover:bg-[var(--color-bg-tertiary)]/80 transition-colors"
                   >
-                    重试
+                    {t('flow.retry')}
                   </button>
                 </div>
               ) : !selectedCoin ? (
@@ -643,7 +666,7 @@ export function TokenFlow() {
                     <circle cx="12" cy="12" r="10" />
                     <path d="M12 6v6l4 2" />
                   </svg>
-                  <p>请选择一个代币查看交易流</p>
+                  <p>{t('flow.selectCoin')}</p>
                 </div>
               ) : filteredEvents.length === 0 ? (
                 <div className="text-center py-12 text-[var(--color-text-muted)]">
@@ -651,8 +674,8 @@ export function TokenFlow() {
                     <circle cx="12" cy="12" r="10" />
                     <path d="M12 6v6l4 2" />
                   </svg>
-                  <p>暂无符合条件的交易记录</p>
-                  <p className="text-xs mt-1">尝试调整筛选条件</p>
+                  <p>{t('flow.noMatchingTrades')}</p>
+                  <p className="text-xs mt-1">{t('flow.adjustFilters')}</p>
                 </div>
               ) : (
                 filteredEvents.map(event => (
