@@ -478,6 +478,29 @@ async function onFlowEvent(event: TokenFlowEvent): Promise<void> {
       event.price, event.avgEntryPx, 1,
       event.traderRank, event.pnl30d, event.winRate30d,
     ]);
+    
+    // 使用 PostgreSQL NOTIFY 通知 API 服务器（用于跨进程通信）
+    const eventPayload = JSON.stringify({
+      id: `${event.walletId}-${event.timestamp}`,
+      timestamp: event.timestamp,
+      symbol: event.symbol,
+      address: event.address,
+      action: event.action,
+      side: event.side,
+      price: event.price,
+      size: event.size,
+      sizeUsd: event.sizeUsd,
+      oldPosition: event.oldPosition,
+      oldPositionUsd: event.oldPositionUsd,
+      newPosition: event.newPosition,
+      newPositionUsd: event.newPositionUsd,
+      newSide: event.newSide,
+      avgEntryPx: event.avgEntryPx,
+      rank: event.traderRank,
+      pnl30d: event.pnl30d,
+      winRate30d: event.winRate30d,
+    });
+    await db.query(`SELECT pg_notify('flow_events', $1)`, [eventPayload]);
   } catch (error) {
     console.error('Error saving flow event:', error);
   }

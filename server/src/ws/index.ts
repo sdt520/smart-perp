@@ -1,6 +1,8 @@
 /**
  * WebSocket Server for Real-time Token Flow Events
  * 
+ * 使用 PostgreSQL LISTEN/NOTIFY 实现跨进程事件传递
+ * 
  * 客户端可以订阅：
  * - 全部事件: { type: 'subscribe', channel: 'flow' }
  * - 特定币种: { type: 'subscribe', channel: 'flow', coin: 'BTC' }
@@ -9,7 +11,7 @@
 
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server } from 'http';
-import { eventEmitter } from '../worker/positionEngine.js';
+import db from '../db/index.js';
 
 interface ClientSubscription {
   channel: 'flow';
@@ -148,47 +150,55 @@ function handleClientMessage(client: WsClient, msg: any): void {
   }
 }
 
-function setupEventListener(): void {
-  eventEmitter.on('flow', (event) => {
-    const message = JSON.stringify({
-      type: 'flow',
-      data: {
-        id: `${event.walletId}-${event.timestamp}`,
-        timestamp: event.timestamp,
-        symbol: event.symbol,
-        address: event.address,
-        action: event.action,
-        side: event.side,
-        price: event.price,
-        size: event.size,
-        sizeUsd: event.sizeUsd,
-        oldPosition: event.oldPosition,
-        oldPositionUsd: event.oldPositionUsd,
-        newPosition: event.newPosition,
-        newPositionUsd: event.newPositionUsd,
-        newSide: event.newSide,
-        avgEntryPx: event.avgEntryPx,
-        rank: event.traderRank,
-        pnl30d: event.pnl30d,
-        winRate30d: event.winRate30d,
-      },
-    });
+async function setupEventListener(): Promise<void> {
+  try {
+    // 获取专用连接用于 LISTEN
+    const client = await db.getClient();
     
-    // 广播给所有订阅的客户端
-    clients.forEach(client => {
-      if (client.ws.readyState !== WebSocket.OPEN) return;
+    // 监听 flow_events 通道
+    await client.query('LISTEN flow_events');
+    console.log('📡 Listening for PostgreSQL flow_events notifications');
+    
+    // 处理通知
+    client.on('notification', (msg) => {
+      if (msg.channel !== 'flow_events' || !msg.payload) return;
       
-      const isSubscribed = client.subscriptions.some(
-        s => s.channel === 'flow' && (!s.coin || s.coin === event.symbol)
-      );
-      
-      if (isSubscribed) {
-        client.ws.send(message);
+      try {
+        const event = JSON.parse(msg.payload);
+        const message = JSON.stringify({
+          type: 'flow',
+          data: event,
+        });
+        
+        // 广播给所有订阅的客户端
+        clients.forEach(wsClient => {
+          if (wsClient.ws.readyState !== WebSocket.OPEN) return;
+          
+          const isSubscribed = wsClient.subscriptions.some(
+            s => s.channel === 'flow' && (!s.coin || s.coin === event.symbol)
+          );
+          
+          if (isSubscribed) {
+            wsClient.ws.send(message);
+          }
+        });
+      } catch (error) {
+        console.error('Error parsing flow event notification:', error);
       }
     });
-  });
-  
-  console.log('📡 Listening for Position Engine events');
+    
+    // 处理连接错误
+    client.on('error', (error) => {
+      console.error('PostgreSQL LISTEN connection error:', error);
+      // 尝试重新连接
+      setTimeout(() => setupEventListener(), 5000);
+    });
+    
+  } catch (error) {
+    console.error('Failed to setup PostgreSQL LISTEN:', error);
+    // 5秒后重试
+    setTimeout(() => setupEventListener(), 5000);
+  }
 }
 
 /**
