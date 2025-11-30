@@ -41,6 +41,7 @@ interface WalletApiItem {
   last_trade_at: string | null;
   calculated_at: string | null;
   rank?: number;
+  is_bot?: boolean;
 }
 
 interface StatsApiResponse {
@@ -78,6 +79,7 @@ function transformWallet(item: WalletApiItem): SmartWallet {
     twitter: item.twitter_handle || undefined,
     lastUpdated: item.calculated_at ? new Date(item.calculated_at) : new Date(),
     rank: item.rank,
+    isBot: item.is_bot,
   };
 }
 

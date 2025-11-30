@@ -80,6 +80,7 @@ export async function getWalletLeaderboard(params: GetWalletsParams): Promise<{
 
   // Get paginated data with rank
   // First, create a subquery to get ranks based on the sort field across ALL wallets
+  // Mark as bot if avg daily trades > 300 (trades_count_7d / 7 > 300)
   const query = `
     WITH ranked_wallets AS (
       SELECT 
@@ -100,7 +101,8 @@ export async function getWalletLeaderboard(params: GetWalletsParams): Promise<{
         COALESCE(m.total_volume_30d, 0)::float AS total_volume_30d,
         m.last_trade_at,
         m.calculated_at,
-        ROW_NUMBER() OVER (ORDER BY ${safeSortField} ${safeSortDir} NULLS LAST, w.address ASC) AS rank
+        ROW_NUMBER() OVER (ORDER BY ${safeSortField} ${safeSortDir} NULLS LAST, w.address ASC) AS rank,
+        CASE WHEN COALESCE(m.trades_count_7d, 0) / 7.0 > 300 THEN true ELSE false END AS is_bot
       FROM wallets w
       JOIN platforms p ON w.platform_id = p.id
       LEFT JOIN wallet_metrics m ON w.id = m.wallet_id
@@ -158,7 +160,7 @@ export async function getWalletById(id: number): Promise<WalletLeaderboardItem |
 export async function getWalletByAddress(
   address: string,
   platformId: string
-): Promise<(WalletLeaderboardItem & { rank?: number }) | null> {
+): Promise<(WalletLeaderboardItem & { rank?: number; is_bot?: boolean }) | null> {
   // Use a CTE to calculate rank based on pnl_30d
   const query = `
     WITH ranked_wallets AS (
@@ -180,7 +182,8 @@ export async function getWalletByAddress(
         COALESCE(m.total_volume_30d, 0)::float AS total_volume_30d,
         m.last_trade_at,
         m.calculated_at,
-        ROW_NUMBER() OVER (ORDER BY m.pnl_30d DESC NULLS LAST, w.address ASC) AS rank
+        ROW_NUMBER() OVER (ORDER BY m.pnl_30d DESC NULLS LAST, w.address ASC) AS rank,
+        CASE WHEN COALESCE(m.trades_count_7d, 0) / 7.0 > 300 THEN true ELSE false END AS is_bot
       FROM wallets w
       JOIN platforms p ON w.platform_id = p.id
       LEFT JOIN wallet_metrics m ON w.id = m.wallet_id
@@ -190,7 +193,7 @@ export async function getWalletByAddress(
     WHERE address = $1 AND platform_id = $2
   `;
 
-  const result = await db.query<WalletLeaderboardItem & { rank: number }>(query, [address, platformId]);
+  const result = await db.query<WalletLeaderboardItem & { rank: number; is_bot: boolean }>(query, [address, platformId]);
   return result.rows[0] || null;
 }
 
@@ -333,7 +336,8 @@ export async function getFavoriteWallets(userId: number): Promise<(WalletLeaderb
         COALESCE(m.total_volume_30d, 0)::float AS total_volume_30d,
         m.last_trade_at,
         m.calculated_at,
-        ROW_NUMBER() OVER (ORDER BY m.pnl_30d DESC NULLS LAST, w.address ASC) as rank
+        ROW_NUMBER() OVER (ORDER BY m.pnl_30d DESC NULLS LAST, w.address ASC) as rank,
+        CASE WHEN COALESCE(m.trades_count_7d, 0) / 7.0 > 300 THEN true ELSE false END AS is_bot
       FROM wallets w
       JOIN platforms p ON w.platform_id = p.id
       LEFT JOIN wallet_metrics m ON w.id = m.wallet_id
@@ -344,16 +348,16 @@ export async function getFavoriteWallets(userId: number): Promise<(WalletLeaderb
   `;
   
   const addresses = favoritesResult.rows.map(f => f.wallet_address.toLowerCase());
-  const dbWalletsResult = await db.query<WalletLeaderboardItem & { rank: number }>(dbWalletsQuery, [addresses]);
+  const dbWalletsResult = await db.query<WalletLeaderboardItem & { rank: number; is_bot: boolean }>(dbWalletsQuery, [addresses]);
   
   // Create a map of address -> wallet data
-  const walletMap = new Map<string, WalletLeaderboardItem & { rank?: number }>();
+  const walletMap = new Map<string, WalletLeaderboardItem & { rank?: number; is_bot?: boolean }>();
   for (const wallet of dbWalletsResult.rows) {
     walletMap.set(wallet.address.toLowerCase(), wallet);
   }
   
   // Build result in favorites order, including external addresses
-  const result: (WalletLeaderboardItem & { rank?: number })[] = [];
+  const result: (WalletLeaderboardItem & { rank?: number; is_bot?: boolean })[] = [];
   for (const fav of favoritesResult.rows) {
     const address = fav.wallet_address.toLowerCase();
     const dbWallet = walletMap.get(address);

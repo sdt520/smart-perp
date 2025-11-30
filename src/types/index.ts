@@ -16,6 +16,7 @@ export interface SmartWallet {
   lastUpdated?: Date;
   lastTradeAt?: string;
   rank?: number; // 实际排名，不在排行榜中时为 undefined
+  isBot?: boolean; // 是否为高频交易机器人（7日日均交易数>300）
 }
 
 export type SortField = 

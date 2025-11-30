@@ -36,6 +36,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'table.winRate': 'Win Rate',
     'table.volume7d': '7D Volume',
     'table.volume30d': '30D Volume',
+    'table.suspectedBot': 'Suspected high-frequency bot (avg >300 trades/day)',
     'table.noData': 'No data',
 
     // Home
@@ -211,6 +212,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'table.winRate': '胜率',
     'table.volume7d': '7D 成交量',
     'table.volume30d': '30D 成交量',
+    'table.suspectedBot': '疑似高频交易机器人（日均交易>300笔）',
     'table.noData': '暂无数据',
 
     // Home
@@ -386,6 +388,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'table.winRate': '勝率',
     'table.volume7d': '7日取引量',
     'table.volume30d': '30日取引量',
+    'table.suspectedBot': '高頻度取引ボットの疑い（1日平均300件以上）',
     'table.noData': 'データなし',
 
     // Home
@@ -561,6 +564,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'table.winRate': '승률',
     'table.volume7d': '7일 거래량',
     'table.volume30d': '30일 거래량',
+    'table.suspectedBot': '의심되는 고빈도 봇 (일 평균 300건 이상)',
     'table.noData': '데이터 없음',
 
     // Home
@@ -736,6 +740,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'table.winRate': 'Винрейт',
     'table.volume7d': 'Объём 7д',
     'table.volume30d': 'Объём 30д',
+    'table.suspectedBot': 'Предполагаемый высокочастотный бот (>300 сделок/день)',
     'table.noData': 'Нет данных',
 
     // Home
