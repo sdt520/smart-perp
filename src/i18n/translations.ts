@@ -177,6 +177,8 @@ export const translations: Record<Language, Record<string, string>> = {
     'telegram.step2': 'Send the following verification code to the bot',
     'telegram.codeValid': 'Code valid for 10 minutes',
     'telegram.successHint': 'You will receive a confirmation message upon success',
+    'favorites.minPositionAll': 'All',
+    'favorites.minPositionHint': 'Min position: only notify trades above this amount',
 
     // Login
     'login.title': 'Login',
@@ -369,6 +371,8 @@ export const translations: Record<Language, Record<string, string>> = {
     'telegram.step2': '向机器人发送以下验证码',
     'telegram.codeValid': '验证码 10 分钟内有效',
     'telegram.successHint': '绑定成功后，您将收到 Telegram 确认消息',
+    'favorites.minPositionAll': '全部',
+    'favorites.minPositionHint': '最小仓位：只推送大于此金额的交易',
 
     // Login
     'login.title': '登录',
@@ -561,6 +565,8 @@ export const translations: Record<Language, Record<string, string>> = {
     'telegram.step2': '以下の認証コードをボットに送信',
     'telegram.codeValid': 'コードは10分間有効',
     'telegram.successHint': '連携成功後、確認メッセージが届きます',
+    'favorites.minPositionAll': 'すべて',
+    'favorites.minPositionHint': '最小ポジション：この金額以上の取引のみ通知',
 
     // Login
     'login.title': 'ログイン',
@@ -753,6 +759,8 @@ export const translations: Record<Language, Record<string, string>> = {
     'telegram.step2': '아래 인증 코드를 봇에게 전송',
     'telegram.codeValid': '코드는 10분간 유효',
     'telegram.successHint': '연결 성공 시 확인 메시지를 받게 됩니다',
+    'favorites.minPositionAll': '전체',
+    'favorites.minPositionHint': '최소 포지션: 이 금액 이상 거래만 알림',
 
     // Login
     'login.title': '로그인',
@@ -945,6 +953,8 @@ export const translations: Record<Language, Record<string, string>> = {
     'telegram.step2': 'Отправьте боту код подтверждения',
     'telegram.codeValid': 'Код действителен 10 минут',
     'telegram.successHint': 'После успешной привязки вы получите подтверждение',
+    'favorites.minPositionAll': 'Все',
+    'favorites.minPositionHint': 'Мин. позиция: уведомлять только о сделках выше этой суммы',
 
     // Login
     'login.title': 'Вход',

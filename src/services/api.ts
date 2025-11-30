@@ -365,6 +365,8 @@ export interface TraderDetail {
   maxDrawdown: number;
   sharpeRatio: number;
   isEstimated: boolean; // 是否为估算数据（无真实历史时）
+  isBot?: boolean; // 是否为高频交易机器人
+  rank?: number; // 排名
   pnlHistory: {
     date: string;
     pnl: number;
@@ -418,6 +420,8 @@ interface WalletApiResponse {
   total_volume_30d: number;
   last_trade_at: string | null;
   calculated_at: string | null;
+  is_bot?: boolean;
+  rank?: number;
 }
 
 // Generate PnL history from total 30d PnL (fallback when API data unavailable)
@@ -642,6 +646,8 @@ export async function fetchTraderDetail(address: string): Promise<TraderDetail> 
       maxDrawdown,
       sharpeRatio,
       isEstimated,
+      isBot: wallet.is_bot,
+      rank: wallet.rank,
       pnlHistory,
     };
   } catch (err) {

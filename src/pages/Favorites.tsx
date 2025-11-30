@@ -15,6 +15,7 @@ interface FavoriteWallet {
   pnl_7d: number;
   pnl_30d: number;
   win_rate_30d: number;
+  is_bot?: boolean;
 }
 
 interface TelegramStatus {
@@ -25,13 +26,7 @@ interface TelegramStatus {
   minPositionUsd: number;
 }
 
-const MIN_POSITION_OPTIONS = [
-  { value: 0, label: '全部' },
-  { value: 10000, label: '≥ $10K' },
-  { value: 50000, label: '≥ $50K' },
-  { value: 100000, label: '≥ $100K' },
-  { value: 500000, label: '≥ $500K' },
-];
+// MIN_POSITION_OPTIONS moved inside component to use translation
 
 const API_BASE = import.meta.env.VITE_API_BASE || 
   (import.meta.env.PROD ? '/api' : 'http://localhost:3001/api');
@@ -177,6 +172,15 @@ export function Favorites() {
   const navigate = useNavigate();
   const [wallets, setWallets] = useState<FavoriteWallet[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Min position options with translation
+  const MIN_POSITION_OPTIONS = [
+    { value: 0, label: t('favorites.minPositionAll') },
+    { value: 10000, label: '≥ $10K' },
+    { value: 50000, label: '≥ $50K' },
+    { value: 100000, label: '≥ $100K' },
+    { value: 500000, label: '≥ $500K' },
+  ];
   
   // Telegram 状态
   const [telegramStatus, setTelegramStatus] = useState<TelegramStatus | null>(null);
@@ -422,7 +426,7 @@ export function Favorites() {
                   value={telegramStatus.minPositionUsd}
                   onChange={(e) => handleSetMinPosition(Number(e.target.value))}
                   className="px-2 py-1 bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] rounded-lg text-xs text-[var(--color-text-secondary)] focus:outline-none focus:border-[var(--color-accent-blue)]"
-                  title="最小仓位：只推送大于此金额的交易"
+                  title={t('favorites.minPositionHint')}
                 >
                   {MIN_POSITION_OPTIONS.map(opt => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -575,6 +579,19 @@ export function Favorites() {
                           address={wallet.address}
                           linkTo={`/trader/${wallet.address}`}
                         />
+                        {wallet.is_bot && (
+                          <span className="relative group/bot">
+                            <span className="text-[var(--color-text-muted)] cursor-default">
+                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2a2 2 0 012 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 017 7h1a1 1 0 011 1v3a1 1 0 01-1 1h-1v1a2 2 0 01-2 2H5a2 2 0 01-2-2v-1H2a1 1 0 01-1-1v-3a1 1 0 011-1h1a7 7 0 017-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 012-2M7.5 13A2.5 2.5 0 005 15.5 2.5 2.5 0 007.5 18a2.5 2.5 0 002.5-2.5A2.5 2.5 0 007.5 13m9 0a2.5 2.5 0 00-2.5 2.5 2.5 2.5 0 002.5 2.5 2.5 2.5 0 002.5-2.5 2.5 2.5 0 00-2.5-2.5z"/>
+                              </svg>
+                            </span>
+                            <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded whitespace-nowrap opacity-0 invisible group-hover/bot:opacity-100 group-hover/bot:visible transition-all z-50">
+                              {t('table.suspectedBot')}
+                              <span className="absolute left-1/2 -translate-x-1/2 top-full border-4 border-transparent border-t-gray-900"></span>
+                            </span>
+                          </span>
+                        )}
                         {wallet.label && (
                           <span className="text-xs text-[var(--color-text-muted)] bg-[var(--color-bg-tertiary)] px-2 py-0.5 rounded">
                             {wallet.label}
