@@ -309,17 +309,17 @@ function applyFill(params: {
 }
 
 /**
- * 获取聚合 key
+ * 获取聚合 key（包含方向，避免买入和卖出操作被错误聚合）
  */
-function getAggregationKey(address: string, symbol: string): string {
-  return `${address.toLowerCase()}:${symbol}`;
+function getAggregationKey(address: string, symbol: string, side: 'B' | 'A'): string {
+  return `${address.toLowerCase()}:${symbol}:${side}`;
 }
 
 /**
  * 将事件添加到聚合缓冲区
  */
 function addToAggregationBuffer(event: TokenFlowEvent): void {
-  const key = getAggregationKey(event.address, event.symbol);
+  const key = getAggregationKey(event.address, event.symbol, event.side);
   const existing = aggregationBuffer.get(key);
   
   if (existing) {
@@ -350,14 +350,15 @@ function addToAggregationBuffer(event: TokenFlowEvent): void {
 }
 
 /**
- * 调度聚合刷新
+ * 调度聚合刷新（使用防抖策略，每次新事件重置定时器）
  */
 function scheduleAggregationFlush(): void {
+  // 清除旧定时器
   if (aggregationTimer) {
-    // 已有定时器，不重复创建
-    return;
+    clearTimeout(aggregationTimer);
   }
   
+  // 创建新定时器
   aggregationTimer = setTimeout(() => {
     flushAggregationBuffer();
   }, AGGREGATION_WINDOW_MS);
