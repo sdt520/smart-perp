@@ -72,9 +72,6 @@ export function TradesTable({ trades }: TradesTableProps) {
               {t('detail.price')}
             </th>
             <th className="px-5 py-4 text-xs font-medium text-[var(--color-text-muted)] text-right">
-              {t('detail.leverage')}
-            </th>
-            <th className="px-5 py-4 text-xs font-medium text-[var(--color-text-muted)] text-right">
               {t('detail.realizedPnl')}
             </th>
           </tr>
@@ -148,13 +145,6 @@ export function TradesTable({ trades }: TradesTableProps) {
                 <td className="px-5 py-4 text-right">
                   <span className="font-mono text-sm text-[var(--color-text-secondary)]">
                     ${formatPrice(trade.price)}
-                  </span>
-                </td>
-
-                {/* Leverage */}
-                <td className="px-5 py-4 text-right">
-                  <span className="font-mono text-sm text-[var(--color-text-secondary)]">
-                    {trade.leverage ? `${trade.leverage}x` : '-'}
                   </span>
                 </td>
 
