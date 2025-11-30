@@ -53,12 +53,14 @@ function TelegramBindModal({
   isOpen, 
   onClose, 
   code, 
-  botUsername 
+  botUsername,
+  t
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
   code: string; 
   botUsername: string;
+  t: (key: string) => string;
 }) {
   if (!isOpen) return null;
 
@@ -66,7 +68,7 @@ function TelegramBindModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="bg-[var(--color-bg-secondary)] rounded-2xl p-6 max-w-md w-full border border-[var(--color-border)] shadow-2xl">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">绑定 Telegram</h3>
+          <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">{t('telegram.bindTitle')}</h3>
           <button onClick={onClose} className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -77,14 +79,14 @@ function TelegramBindModal({
         <div className="space-y-4">
           <div className="text-center">
             <p className="text-sm text-[var(--color-text-secondary)] mb-4">
-              请按以下步骤绑定您的 Telegram：
+              {t('telegram.bindSteps')}
             </p>
             
             <div className="space-y-3 text-left">
               <div className="flex gap-3">
                 <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--color-accent-blue)] text-white text-sm flex items-center justify-center">1</span>
                 <div>
-                  <p className="text-sm text-[var(--color-text-primary)]">打开 Telegram 搜索机器人</p>
+                  <p className="text-sm text-[var(--color-text-primary)]">{t('telegram.step1')}</p>
                   <a 
                     href={`https://t.me/${botUsername}`}
                     target="_blank"
@@ -98,7 +100,7 @@ function TelegramBindModal({
               
               <div className="flex gap-3">
                 <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--color-accent-blue)] text-white text-sm flex items-center justify-center">2</span>
-                <p className="text-sm text-[var(--color-text-primary)]">向机器人发送以下验证码</p>
+                <p className="text-sm text-[var(--color-text-primary)]">{t('telegram.step2')}</p>
               </div>
             </div>
           </div>
@@ -107,11 +109,11 @@ function TelegramBindModal({
             <p className="text-2xl font-mono font-bold text-[var(--color-accent-primary)] tracking-widest">
               {code}
             </p>
-            <p className="text-xs text-[var(--color-text-muted)] mt-2">验证码 10 分钟内有效</p>
+            <p className="text-xs text-[var(--color-text-muted)] mt-2">{t('telegram.codeValid')}</p>
           </div>
           
           <p className="text-xs text-[var(--color-text-muted)] text-center">
-            绑定成功后，您将收到 Telegram 确认消息
+            {t('telegram.successHint')}
           </p>
         </div>
       </div>
@@ -124,12 +126,16 @@ function NotificationToggle({
   enabled, 
   onToggle, 
   disabled = false,
-  size = 'normal'
+  size = 'normal',
+  pauseTitle,
+  startTitle
 }: { 
   enabled: boolean; 
   onToggle: () => void;
   disabled?: boolean;
   size?: 'small' | 'normal';
+  pauseTitle?: string;
+  startTitle?: string;
 }) {
   const sizeClasses = size === 'small' 
     ? 'w-4 h-4' 
@@ -148,7 +154,7 @@ function NotificationToggle({
         }
         ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
       `}
-      title={enabled ? '点击暂停通知' : '点击开启通知'}
+      title={enabled ? pauseTitle : startTitle}
     >
       {enabled ? (
         <svg className={sizeClasses} fill="currentColor" viewBox="0 0 24 24">
@@ -261,7 +267,7 @@ export function Favorites() {
 
   // 解绑 Telegram
   const handleUnbindTelegram = async () => {
-    if (!confirm('确定要解绑 Telegram 吗？解绑后将不再收到通知。')) return;
+    if (!confirm(t('favorites.confirmUnbind'))) return;
     
     try {
       const res = await fetch(`${API_BASE}/telegram/unbind`, {
@@ -367,7 +373,7 @@ export function Favorites() {
             <circle cx="12" cy="12" r="10" strokeOpacity="0.2" />
             <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
           </svg>
-          <span>正在验证登录状态...</span>
+          <span>{t('favorites.verifying')}</span>
         </div>
       </div>
     );
@@ -396,7 +402,7 @@ export function Favorites() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </Link>
-            <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">我的收藏</h1>
+            <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">{t('favorites.title')}</h1>
           </div>
           
           {/* Telegram 绑定状态 */}
@@ -408,7 +414,7 @@ export function Favorites() {
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1-.54-1.46-.54-.45-.01-1.17-.14-1.74-.27-.7-.16-1.26-.25-1.21-.52.02-.14.28-.29.78-.45 3.07-1.34 5.12-2.21 6.15-2.64 2.93-1.21 3.54-1.43 3.94-1.44.09 0 .28.02.4.12.11.08.14.19.15.27-.01.06.01.24 0 .38z"/>
                   </svg>
                   <span className="text-[var(--color-text-secondary)]">
-                    {telegramStatus.username ? `@${telegramStatus.username}` : '已绑定'}
+                    {telegramStatus.username ? `@${telegramStatus.username}` : t('favorites.telegramBound')}
                   </span>
                 </div>
                 {/* 最小仓位选择器 */}
@@ -426,7 +432,7 @@ export function Favorites() {
                   onClick={handleUnbindTelegram}
                   className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-accent-negative)] transition-colors"
                 >
-                  解绑
+                  {t('favorites.unbind')}
                 </button>
               </>
             ) : (
@@ -437,14 +443,14 @@ export function Favorites() {
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1-.54-1.46-.54-.45-.01-1.17-.14-1.74-.27-.7-.16-1.26-.25-1.21-.52.02-.14.28-.29.78-.45 3.07-1.34 5.12-2.21 6.15-2.64 2.93-1.21 3.54-1.43 3.94-1.44.09 0 .28.02.4.12.11.08.14.19.15.27-.01.06.01.24 0 .38z"/>
                 </svg>
-                绑定 Telegram
+                {t('favorites.bindTelegram')}
               </button>
             )}
           </div>
         </div>
         <p className="text-sm text-[var(--color-text-muted)]">
-          共收藏 {wallets.length} 个钱包地址
-          {telegramStatus?.verified && ' • 绑定 Telegram 后可接收交易通知'}
+          {t('favorites.count').replace('{count}', wallets.length.toString())}
+          {telegramStatus?.verified && ` • ${t('favorites.telegramHint')}`}
         </p>
       </div>
 
@@ -481,7 +487,7 @@ export function Favorites() {
             />
           </svg>
           <h3 className="text-lg font-medium text-[var(--color-text-primary)] mb-2">
-            还没有收藏任何钱包
+            {t('favorites.empty')}
           </h3>
           <p className="text-sm text-[var(--color-text-muted)] mb-6">
             {t('favorites.emptyHint')}
@@ -499,7 +505,7 @@ export function Favorites() {
           {telegramStatus?.verified && wallets.length > 0 && (
             <div className="px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-bg-tertiary)]/50 flex items-center justify-between">
               <span className="text-sm text-[var(--color-text-secondary)]">
-                批量操作通知
+                {t('favorites.batchOperations')}
               </span>
               <div className="flex items-center gap-2">
                 <button
@@ -511,7 +517,7 @@ export function Favorites() {
                       : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-accent-primary)]/20 hover:text-[var(--color-accent-primary)]'
                   } ${isTogglingAll ? 'opacity-50' : ''}`}
                 >
-                  全部开启
+                  {t('favorites.enableAll')}
                 </button>
                 <button
                   onClick={() => handleToggleAll(false)}
@@ -522,7 +528,7 @@ export function Favorites() {
                       : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-text-muted)]/20 hover:text-[var(--color-text-muted)]'
                   } ${isTogglingAll ? 'opacity-50' : ''}`}
                 >
-                  全部暂停
+                  {t('favorites.disableAll')}
                 </button>
               </div>
             </div>
@@ -532,23 +538,23 @@ export function Favorites() {
             <thead>
               <tr className="border-b border-[var(--color-border)]">
                 <th className="px-4 py-4 text-left text-xs font-medium text-[var(--color-text-muted)] tracking-wide">
-                  钱包地址
+                  {t('favorites.walletAddress')}
                 </th>
                 <th className="px-4 py-4 text-right text-xs font-medium text-[var(--color-text-muted)] tracking-wide">
-                  1D PnL
+                  {t('detail.pnl1d')}
                 </th>
                 <th className="px-4 py-4 text-right text-xs font-medium text-[var(--color-text-muted)] tracking-wide">
-                  7D PnL
+                  {t('table.pnl7d')}
                 </th>
                 <th className="px-4 py-4 text-right text-xs font-medium text-[var(--color-text-muted)] tracking-wide">
-                  30D PnL
+                  {t('table.pnl30d')}
                 </th>
                 <th className="px-4 py-4 text-right text-xs font-medium text-[var(--color-text-muted)] tracking-wide">
-                  30D 胜率
+                  {t('favorites.winRate30d')}
                 </th>
                 {telegramStatus?.verified && (
                   <th className="px-4 py-4 text-center text-xs font-medium text-[var(--color-text-muted)] tracking-wide w-16">
-                    通知
+                    {t('favorites.notify')}
                   </th>
                 )}
                 <th className="px-4 py-4 w-12"></th>
@@ -610,6 +616,8 @@ export function Favorites() {
                             onToggle={() => handleToggleAddress(wallet.address)}
                             size="small"
                             disabled={!telegramStatus.notificationsEnabled}
+                            pauseTitle={t('favorites.pauseNotify')}
+                            startTitle={t('favorites.startNotify')}
                           />
                         </div>
                       </td>
@@ -634,6 +642,7 @@ export function Favorites() {
         onClose={() => setShowBindModal(false)}
         code={bindCode}
         botUsername={botUsername}
+        t={t}
       />
     </div>
   );
