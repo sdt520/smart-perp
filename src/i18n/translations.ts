@@ -98,8 +98,6 @@ export const translations: Record<Language, Record<string, string>> = {
     'flow.overview': 'Overview',
     'flow.positionDirection': 'Position Direction',
     'flow.tradesCount': 'Trades / Traders',
-    'flow.netLong': 'Net Long',
-    'flow.netShort': 'Net Short',
     'flow.biasLong': 'Long Bias',
     'flow.biasShort': 'Short Bias',
     'flow.neutral': 'Neutral',
