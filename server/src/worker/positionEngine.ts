@@ -98,6 +98,14 @@ const priceMap = new Map<string, number>();
 // 事件发射器
 export const eventEmitter = new EventEmitter();
 
+// ===== Event Aggregation =====
+// 聚合缓冲区：address:symbol -> pending event
+const aggregationBuffer = new Map<string, TokenFlowEvent>();
+// 聚合时间窗口（毫秒）
+const AGGREGATION_WINDOW_MS = 2000;
+// 聚合定时器
+let aggregationTimer: NodeJS.Timeout | null = null;
+
 // WebSocket 连接
 let ws: WebSocket | null = null;
 let reconnectAttempts = 0;
@@ -301,6 +309,77 @@ function applyFill(params: {
 }
 
 /**
+ * 获取聚合 key
+ */
+function getAggregationKey(address: string, symbol: string): string {
+  return `${address.toLowerCase()}:${symbol}`;
+}
+
+/**
+ * 将事件添加到聚合缓冲区
+ */
+function addToAggregationBuffer(event: TokenFlowEvent): void {
+  const key = getAggregationKey(event.address, event.symbol);
+  const existing = aggregationBuffer.get(key);
+  
+  if (existing) {
+    // 聚合：累加 size 和 sizeUsd，更新最终仓位状态
+    // 加权平均价格
+    const totalSize = existing.size + event.size;
+    const weightedPrice = (existing.price * existing.size + event.price * event.size) / totalSize;
+    
+    existing.size = totalSize;
+    existing.sizeUsd = existing.sizeUsd + event.sizeUsd;
+    existing.price = weightedPrice;
+    // 保留最新的仓位状态
+    existing.newPosition = event.newPosition;
+    existing.newPositionUsd = event.newPositionUsd;
+    existing.newSide = event.newSide;
+    existing.avgEntryPx = event.avgEntryPx;
+    // 保留最新时间
+    existing.timestamp = event.timestamp;
+    // 更新 action（基于初始和最终仓位）
+    existing.action = event.action;
+  } else {
+    // 新事件，存入缓冲区
+    aggregationBuffer.set(key, { ...event });
+  }
+  
+  // 启动或重置聚合定时器
+  scheduleAggregationFlush();
+}
+
+/**
+ * 调度聚合刷新
+ */
+function scheduleAggregationFlush(): void {
+  if (aggregationTimer) {
+    // 已有定时器，不重复创建
+    return;
+  }
+  
+  aggregationTimer = setTimeout(() => {
+    flushAggregationBuffer();
+  }, AGGREGATION_WINDOW_MS);
+}
+
+/**
+ * 刷新聚合缓冲区，发送聚合后的事件
+ */
+function flushAggregationBuffer(): void {
+  aggregationTimer = null;
+  
+  // 获取并清空缓冲区
+  const events = Array.from(aggregationBuffer.values());
+  aggregationBuffer.clear();
+  
+  // 处理每个聚合后的事件
+  for (const event of events) {
+    onFlowEvent(event);
+  }
+}
+
+/**
  * 处理一笔交易
  */
 function handleTrade(trade: WsTrade): void {
@@ -319,7 +398,7 @@ function handleTrade(trade: WsTrade): void {
   if (buyerIsSmart) {
     const event = applyFill({ user: buyer, coin, side: 'B', price, size, time });
     if (event) {
-      onFlowEvent(event);
+      addToAggregationBuffer(event);
     }
   }
   
@@ -327,7 +406,7 @@ function handleTrade(trade: WsTrade): void {
   if (sellerIsSmart) {
     const event = applyFill({ user: seller, coin, side: 'A', price, size, time });
     if (event) {
-      onFlowEvent(event);
+      addToAggregationBuffer(event);
     }
   }
 }
