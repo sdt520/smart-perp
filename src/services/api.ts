@@ -394,7 +394,7 @@ export interface Trade {
   type: 'open' | 'close';
   size: number;
   price: number;
-  fee: number;
+  leverage?: number;
   realizedPnl?: number;
   timestamp: string;
 }
@@ -695,7 +695,6 @@ export async function fetchTraderTrades(address: string, limit = 100): Promise<T
       const size = parseFloat(fill.sz);
       const price = parseFloat(fill.px);
       const closedPnl = parseFloat(fill.closedPnl || '0');
-      const fee = parseFloat(fill.fee || '0');
       
       // Determine if this is opening or closing based on closedPnl
       const isClose = closedPnl !== 0;
@@ -706,7 +705,7 @@ export async function fetchTraderTrades(address: string, limit = 100): Promise<T
         type: isClose ? 'close' : 'open',
         size,
         price,
-        fee,
+        leverage: undefined, // Hyperliquid API doesn't provide leverage per trade
         realizedPnl: isClose ? closedPnl : undefined,
         timestamp: new Date(fill.time).toISOString(),
       };

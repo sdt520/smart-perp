@@ -54,28 +54,28 @@ export function TradesTable({ trades }: TradesTableProps) {
         <thead>
           <tr className="border-b border-[var(--color-border)]">
             <th className="px-5 py-4 text-xs font-medium text-[var(--color-text-muted)] text-left">
-              时间
+              {t('detail.time')}
             </th>
             <th className="px-5 py-4 text-xs font-medium text-[var(--color-text-muted)] text-left">
-              交易对
+              {t('detail.pair')}
             </th>
             <th className="px-5 py-4 text-xs font-medium text-[var(--color-text-muted)] text-right">
-              类型
+              {t('detail.type')}
             </th>
             <th className="px-5 py-4 text-xs font-medium text-[var(--color-text-muted)] text-right">
-              方向
+              {t('detail.direction')}
             </th>
             <th className="px-5 py-4 text-xs font-medium text-[var(--color-text-muted)] text-right">
-              交易金额
+              {t('detail.tradeAmount')}
             </th>
             <th className="px-5 py-4 text-xs font-medium text-[var(--color-text-muted)] text-right">
-              价格
+              {t('detail.price')}
             </th>
             <th className="px-5 py-4 text-xs font-medium text-[var(--color-text-muted)] text-right">
-              手续费
+              {t('detail.leverage')}
             </th>
             <th className="px-5 py-4 text-xs font-medium text-[var(--color-text-muted)] text-right">
-              已实现 PnL
+              {t('detail.realizedPnl')}
             </th>
           </tr>
         </thead>
@@ -115,7 +115,7 @@ export function TradesTable({ trades }: TradesTableProps) {
                       : 'bg-[var(--color-accent-purple)]/10 text-[var(--color-accent-purple)]'
                     }
                   `}>
-                    {isOpen ? '开仓' : '平仓'}
+                    {isOpen ? t('detail.openPosition') : t('detail.closePosition')}
                   </span>
                 </td>
 
@@ -128,7 +128,7 @@ export function TradesTable({ trades }: TradesTableProps) {
                       : 'text-[var(--color-accent-negative)]'
                     }
                   `}>
-                    {isBuy ? 'BUY' : 'SELL'}
+                    {isBuy ? 'LONG' : 'SHORT'}
                   </span>
                 </td>
 
@@ -151,10 +151,10 @@ export function TradesTable({ trades }: TradesTableProps) {
                   </span>
                 </td>
 
-                {/* Fee */}
+                {/* Leverage */}
                 <td className="px-5 py-4 text-right">
-                  <span className="font-mono text-sm text-[var(--color-text-muted)]">
-                    ${formatNumber(trade.fee, 4)}
+                  <span className="font-mono text-sm text-[var(--color-text-secondary)]">
+                    {trade.leverage ? `${trade.leverage}x` : '-'}
                   </span>
                 </td>
 
