@@ -99,12 +99,46 @@ const priceMap = new Map<string, number>();
 export const eventEmitter = new EventEmitter();
 
 // ===== Event Aggregation =====
-// 聚合缓冲区：address:symbol -> pending event
+// 聚合缓冲区：address:symbol:side -> pending event
 const aggregationBuffer = new Map<string, TokenFlowEvent>();
 // 聚合时间窗口（毫秒）
 const AGGREGATION_WINDOW_MS = 2000;
 // 聚合定时器
 let aggregationTimer: NodeJS.Timeout | null = null;
+
+// ===== Telegram Deduplication =====
+// 已发送通知的去重缓存（event key -> timestamp）
+const sentNotifications = new Map<string, number>();
+// 去重缓存过期时间（5秒）
+const DEDUP_EXPIRY_MS = 5000;
+
+function getNotificationKey(event: TokenFlowEvent): string {
+  // 使用 address + symbol + timestamp（精确到秒）作为去重 key
+  const tsSeconds = Math.floor(event.timestamp / 1000);
+  return `${event.address}:${event.symbol}:${tsSeconds}`;
+}
+
+function shouldSendNotification(event: TokenFlowEvent): boolean {
+  const key = getNotificationKey(event);
+  const now = Date.now();
+  
+  // 清理过期的缓存
+  for (const [k, ts] of sentNotifications) {
+    if (now - ts > DEDUP_EXPIRY_MS) {
+      sentNotifications.delete(k);
+    }
+  }
+  
+  // 检查是否已发送过
+  if (sentNotifications.has(key)) {
+    console.log(`⚠️ Skipping duplicate notification for ${key}`);
+    return false;
+  }
+  
+  // 标记为已发送
+  sentNotifications.set(key, now);
+  return true;
+}
 
 // WebSocket 连接
 let ws: WebSocket | null = null;
@@ -473,19 +507,21 @@ async function onFlowEvent(event: TokenFlowEvent): Promise<void> {
   // 发射事件（供 WebSocket 推送使用）
   eventEmitter.emit('flow', event);
   
-  // 发送 Telegram 通知（异步，不阻塞）
-  sendTradeNotification(event.address, {
-    symbol: event.symbol,
-    action: event.action,
-    sizeUsd: event.sizeUsd,
-    price: event.price,
-    newSide: event.newSide,
-    newPositionUsd: event.newPositionUsd,
-    traderRank: event.traderRank,
-    timestamp: event.timestamp,
-  }).catch(err => {
-    console.error('Failed to send Telegram notification:', err);
-  });
+  // 发送 Telegram 通知（异步，不阻塞，带去重）
+  if (shouldSendNotification(event)) {
+    sendTradeNotification(event.address, {
+      symbol: event.symbol,
+      action: event.action,
+      sizeUsd: event.sizeUsd,
+      price: event.price,
+      newSide: event.newSide,
+      newPositionUsd: event.newPositionUsd,
+      traderRank: event.traderRank,
+      timestamp: event.timestamp,
+    }).catch(err => {
+      console.error('Failed to send Telegram notification:', err);
+    });
+  }
 }
 
 // ===== WebSocket Connection =====
