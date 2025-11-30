@@ -54,7 +54,7 @@ function SortIcon({ field, currentField, direction }: {
   );
 }
 
-export function PositionsTable({ positions, title, showPnl = false }: PositionsTableProps) {
+export function PositionsTable({ positions, title: _title, showPnl = false }: PositionsTableProps) {
   const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortField, setSortField] = useState<SortField | null>('positionValue');
