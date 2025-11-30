@@ -402,6 +402,7 @@ async function onFlowEvent(event: TokenFlowEvent): Promise<void> {
     newSide: event.newSide,
     newPositionUsd: event.newPositionUsd,
     traderRank: event.traderRank,
+    timestamp: event.timestamp,
   }).catch(err => {
     console.error('Failed to send Telegram notification:', err);
   });

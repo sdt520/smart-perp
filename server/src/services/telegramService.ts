@@ -235,6 +235,7 @@ export async function sendTradeNotification(
     newSide: string;
     newPositionUsd: number;
     traderRank?: number;
+    timestamp?: number;
   }
 ): Promise<number> {
   const usersToNotify = await getUsersToNotify(traderAddress);
@@ -265,6 +266,19 @@ export async function sendTradeNotification(
       // 忽略错误，继续发送通知
     }
     
+    // 格式化时间 (UTC+8)
+    const tradeTime = event.timestamp 
+      ? new Date(event.timestamp).toLocaleString('zh-CN', { 
+          timeZone: 'Asia/Shanghai',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        })
+      : '';
+
     const message = `
 ${actionEmoji} <b>Smart Money Alert</b>
 
@@ -274,7 +288,7 @@ ${actionEmoji} <b>Smart Money Alert</b>
 📊 <b>Size:</b> $${formatNumber(event.sizeUsd)}
 💵 <b>Price:</b> $${event.price.toFixed(2)}
 📈 <b>New Position:</b> ${event.newSide === 'flat' ? 'Closed' : `$${formatNumber(event.newPositionUsd)} ${event.newSide.toUpperCase()}`}
-
+${tradeTime ? `🕐 <b>Time:</b> ${tradeTime}` : ''}
 🔗 <a href="https://smart-perp.xyz/trader/${traderAddress}">View Trader</a>
 `.trim();
 
