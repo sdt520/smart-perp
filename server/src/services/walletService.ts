@@ -100,7 +100,7 @@ export async function getWalletLeaderboard(params: GetWalletsParams): Promise<{
         COALESCE(m.total_volume_30d, 0)::float AS total_volume_30d,
         m.last_trade_at,
         m.calculated_at,
-        ROW_NUMBER() OVER (ORDER BY ${safeSortField} ${safeSortDir} NULLS LAST) AS rank
+        ROW_NUMBER() OVER (ORDER BY ${safeSortField} ${safeSortDir} NULLS LAST, w.address ASC) AS rank
       FROM wallets w
       JOIN platforms p ON w.platform_id = p.id
       LEFT JOIN wallet_metrics m ON w.id = m.wallet_id
@@ -108,7 +108,7 @@ export async function getWalletLeaderboard(params: GetWalletsParams): Promise<{
     )
     SELECT * FROM ranked_wallets
     ${search ? `WHERE LOWER(address) LIKE $3 OR LOWER(COALESCE(label, '')) LIKE $3` : ''}
-    ORDER BY ${safeSortField} ${safeSortDir} NULLS LAST
+    ORDER BY ${safeSortField} ${safeSortDir} NULLS LAST, address ASC
     LIMIT $1 OFFSET $2
   `;
   
@@ -180,7 +180,7 @@ export async function getWalletByAddress(
         COALESCE(m.total_volume_30d, 0)::float AS total_volume_30d,
         m.last_trade_at,
         m.calculated_at,
-        ROW_NUMBER() OVER (ORDER BY m.pnl_30d DESC NULLS LAST) AS rank
+        ROW_NUMBER() OVER (ORDER BY m.pnl_30d DESC NULLS LAST, w.address ASC) AS rank
       FROM wallets w
       JOIN platforms p ON w.platform_id = p.id
       LEFT JOIN wallet_metrics m ON w.id = m.wallet_id
@@ -333,7 +333,7 @@ export async function getFavoriteWallets(userId: number): Promise<(WalletLeaderb
         COALESCE(m.total_volume_30d, 0)::float AS total_volume_30d,
         m.last_trade_at,
         m.calculated_at,
-        ROW_NUMBER() OVER (ORDER BY m.pnl_30d DESC NULLS LAST) as rank
+        ROW_NUMBER() OVER (ORDER BY m.pnl_30d DESC NULLS LAST, w.address ASC) as rank
       FROM wallets w
       JOIN platforms p ON w.platform_id = p.id
       LEFT JOIN wallet_metrics m ON w.id = m.wallet_id
