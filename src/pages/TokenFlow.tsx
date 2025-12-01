@@ -34,6 +34,23 @@ interface TokenOverview {
   uniqueTraders24h: number;
 }
 
+interface NetFlowPeriod {
+  netFlow: number;
+  volume: number;
+  trades: number;
+  traders: number;
+}
+
+interface NetFlowData {
+  '5m': NetFlowPeriod;
+  '30m': NetFlowPeriod;
+  '1h': NetFlowPeriod;
+  '4h': NetFlowPeriod;
+  '8h': NetFlowPeriod;
+  '12h': NetFlowPeriod;
+  '24h': NetFlowPeriod;
+}
+
 // Constants - these will be translated inside the component
 const ADDRESS_POOLS = [
   { value: 50, label: 'Top 50' },
@@ -166,6 +183,150 @@ function FilterSelect({
           <option key={opt.value} value={opt.value}>{opt.label}</option>
         ))}
       </select>
+    </div>
+  );
+}
+
+// Time Frame Net Flow Component
+const TIME_PERIODS = ['5m', '30m', '1h', '4h', '8h', '12h', '24h'] as const;
+const PERIOD_LABELS: Record<string, string> = {
+  '5m': '5分钟',
+  '30m': '30分钟',
+  '1h': '1小时',
+  '4h': '4小时',
+  '8h': '8小时',
+  '12h': '12小时',
+  '24h': '24小时',
+};
+
+function TimeFrameNetFlow({ 
+  netFlowData, 
+  coin,
+  selectedPeriod,
+  onSelectPeriod 
+}: { 
+  netFlowData: NetFlowData | null;
+  coin: string | null;
+  selectedPeriod: string;
+  onSelectPeriod: (period: string) => void;
+}) {
+  const { t } = useLanguage();
+  
+  if (!coin) {
+    return (
+      <div className="glass-card rounded-xl p-4">
+        <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-3">
+          {t('flow.netFlowOverview')}
+        </h3>
+        <p className="text-sm text-[var(--color-text-muted)]">
+          {t('flow.selectCoin')}
+        </p>
+      </div>
+    );
+  }
+  
+  const currentData = netFlowData?.[selectedPeriod as keyof NetFlowData];
+  const isNetLong = currentData && currentData.netFlow > 0;
+  
+  return (
+    <div className="glass-card rounded-xl p-4">
+      <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-3">
+        {coin} {t('flow.netFlowOverview')}
+      </h3>
+      
+      {/* Time Period Selector */}
+      <div className="flex flex-wrap gap-1 mb-4">
+        {TIME_PERIODS.map(period => (
+          <button
+            key={period}
+            onClick={() => onSelectPeriod(period)}
+            className={`px-2 py-1 text-xs rounded-md transition-colors ${
+              selectedPeriod === period
+                ? 'bg-[var(--color-accent-primary)] text-white'
+                : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+            }`}
+          >
+            {period}
+          </button>
+        ))}
+      </div>
+      
+      {!netFlowData ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-4 bg-[var(--color-bg-tertiary)] rounded animate-pulse" />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {/* Net Flow */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[var(--color-text-muted)]">{t('flow.netFlow')}</span>
+            <span className={`text-sm font-mono font-medium ${
+              isNetLong ? 'text-[var(--color-accent-primary)]' : 'text-[var(--color-accent-negative)]'
+            }`}>
+              {isNetLong ? '↑ ' : '↓ '}
+              {isNetLong ? t('flow.netLong') : t('flow.netShort')} ${formatNumber(Math.abs(currentData?.netFlow || 0))}
+            </span>
+          </div>
+          
+          {/* Volume */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[var(--color-text-muted)]">{t('flow.volume')}</span>
+            <span className="text-sm font-mono text-[var(--color-text-primary)]">
+              ${formatNumber(currentData?.volume || 0)}
+            </span>
+          </div>
+          
+          {/* Trades */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[var(--color-text-muted)]">{t('flow.tradesCount')}</span>
+            <span className="text-sm font-mono text-[var(--color-text-primary)]">
+              {currentData?.trades || 0} / {currentData?.traders || 0} {t('flow.traders')}
+            </span>
+          </div>
+          
+          {/* Mini Bar Chart showing all periods */}
+          <div className="pt-3 border-t border-[var(--color-border)]">
+            <div className="text-xs text-[var(--color-text-muted)] mb-2">{t('flow.allPeriods')}</div>
+            <div className="space-y-1.5">
+              {TIME_PERIODS.map(period => {
+                const data = netFlowData[period];
+                const maxAbs = Math.max(
+                  ...TIME_PERIODS.map(p => Math.abs(netFlowData[p]?.netFlow || 0))
+                ) || 1;
+                const percentage = (Math.abs(data?.netFlow || 0) / maxAbs) * 100;
+                const isPositive = (data?.netFlow || 0) >= 0;
+                
+                return (
+                  <div 
+                    key={period}
+                    className={`flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-tertiary)]/50 rounded px-1 py-0.5 transition-colors ${
+                      selectedPeriod === period ? 'bg-[var(--color-bg-tertiary)]' : ''
+                    }`}
+                    onClick={() => onSelectPeriod(period)}
+                  >
+                    <span className="text-[10px] text-[var(--color-text-muted)] w-8">{period}</span>
+                    <div className="flex-1 h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full transition-all ${
+                          isPositive ? 'bg-[var(--color-accent-primary)]' : 'bg-[var(--color-accent-negative)]'
+                        }`}
+                        style={{ width: `${Math.max(percentage, 2)}%` }}
+                      />
+                    </div>
+                    <span className={`text-[10px] font-mono w-14 text-right ${
+                      isPositive ? 'text-[var(--color-accent-primary)]' : 'text-[var(--color-accent-negative)]'
+                    }`}>
+                      {isPositive ? '+' : ''}{formatNumber(data?.netFlow || 0)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -345,6 +506,8 @@ export function TokenFlow() {
   // Data
   const [events, setEvents] = useState<TradeEvent[]>([]);
   const [overview, setOverview] = useState<TokenOverview | null>(null);
+  const [netFlowData, setNetFlowData] = useState<NetFlowData | null>(null);
+  const [selectedFlowPeriod, setSelectedFlowPeriod] = useState('1h');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -442,6 +605,18 @@ export function TokenFlow() {
           setOverview(overviewData.data);
         }
       }
+      
+      // Fetch net flow data for all time periods
+      const netFlowResponse = await fetch(
+        `${API_BASE}/trades/net-flow?coin=${selectedCoin}&topN=${addressPool}`
+      );
+      
+      if (netFlowResponse.ok) {
+        const netFlowResult = await netFlowResponse.json();
+        if (netFlowResult.success) {
+          setNetFlowData(netFlowResult.data);
+        }
+      }
     } catch (err) {
       console.error('Error fetching token flow data:', err);
       setError(t('flow.loadFailed'));
@@ -453,9 +628,9 @@ export function TokenFlow() {
   useEffect(() => {
     fetchData();
     
-    // Auto refresh overview every 60 seconds (events come via WebSocket)
+    // Auto refresh overview and net flow every 30 seconds (events come via WebSocket)
     const interval = setInterval(() => {
-      // Only refresh overview, not events
+      // Only refresh overview and net flow, not events
       if (selectedCoin) {
         fetch(`${API_BASE}/trades/overview?coin=${selectedCoin}&topN=${addressPool}`)
           .then(res => res.json())
@@ -463,8 +638,15 @@ export function TokenFlow() {
             if (data.success) setOverview(data.data);
           })
           .catch(console.error);
+        
+        fetch(`${API_BASE}/trades/net-flow?coin=${selectedCoin}&topN=${addressPool}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) setNetFlowData(data.data);
+          })
+          .catch(console.error);
       }
-    }, 60000);
+    }, 30000);
     return () => clearInterval(interval);
   }, [fetchData, selectedCoin, addressPool]);
 
@@ -599,6 +781,14 @@ export function TokenFlow() {
               onChange={(v) => setDirection(v as string)}
             />
           </div>
+
+          {/* Time Frame Net Flow */}
+          <TimeFrameNetFlow 
+            netFlowData={netFlowData} 
+            coin={selectedCoin}
+            selectedPeriod={selectedFlowPeriod}
+            onSelectPeriod={setSelectedFlowPeriod}
+          />
 
           {/* Token Overview */}
           <TokenOverviewCard overview={overview} coin={selectedCoin} />

@@ -347,5 +347,102 @@ router.get('/overview', async (req, res) => {
   }
 });
 
+// Get net flow data for multiple time periods
+router.get('/net-flow', async (req, res) => {
+  try {
+    const coin = req.query.coin as string;
+    const topN = parseInt(req.query.topN as string) || 100;
+    
+    if (!coin) {
+      return res.status(400).json({
+        success: false,
+        error: 'coin parameter is required',
+      });
+    }
+    
+    // Time periods in minutes
+    const timePeriods = [
+      { key: '5m', minutes: 5 },
+      { key: '30m', minutes: 30 },
+      { key: '1h', minutes: 60 },
+      { key: '4h', minutes: 240 },
+      { key: '8h', minutes: 480 },
+      { key: '12h', minutes: 720 },
+      { key: '24h', minutes: 1440 },
+    ];
+    
+    const netFlowQuery = `
+      WITH top_wallets AS (
+        SELECT w.id
+        FROM wallets w
+        JOIN wallet_metrics m ON w.id = m.wallet_id
+        WHERE w.is_active = true AND w.platform_id = 'hyperliquid'
+        ORDER BY m.pnl_30d DESC NULLS LAST
+        LIMIT $1
+      )
+      SELECT 
+        $2 as period,
+        COALESCE(SUM(
+          CASE 
+            WHEN e.action IN ('open_long', 'add_long') THEN e.size_change_usd
+            WHEN e.action IN ('open_short', 'add_short') THEN -e.size_change_usd
+            WHEN e.action IN ('close_long', 'reduce_long') THEN -e.size_change_usd
+            WHEN e.action IN ('close_short', 'reduce_short') THEN e.size_change_usd
+            ELSE 0
+          END
+        ), 0) as net_flow,
+        COALESCE(SUM(e.size_change_usd), 0) as total_volume,
+        COUNT(*) as trades_count,
+        COUNT(DISTINCT e.wallet_id) as unique_traders
+      FROM token_flow_events e
+      JOIN top_wallets tw ON e.wallet_id = tw.id
+      WHERE e.symbol = $3
+        AND e.ts >= NOW() - ($2 || ' minutes')::interval
+    `;
+    
+    const results: Record<string, {
+      netFlow: number;
+      volume: number;
+      trades: number;
+      traders: number;
+    }> = {};
+    
+    // Execute queries for each time period
+    for (const period of timePeriods) {
+      try {
+        const result = await db.query(netFlowQuery, [topN, period.minutes, coin]);
+        const row = result.rows[0];
+        
+        results[period.key] = {
+          netFlow: parseFloat(row?.net_flow) || 0,
+          volume: parseFloat(row?.total_volume) || 0,
+          trades: parseInt(row?.trades_count) || 0,
+          traders: parseInt(row?.unique_traders) || 0,
+        };
+      } catch (err) {
+        console.error(`Error fetching ${period.key} net flow:`, err);
+        results[period.key] = {
+          netFlow: 0,
+          volume: 0,
+          trades: 0,
+          traders: 0,
+        };
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: results,
+      coin,
+    });
+  } catch (error) {
+    console.error('Error fetching net flow:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch net flow data',
+    });
+  }
+});
+
 export { router as tradesRouter };
 

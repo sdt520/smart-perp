@@ -111,6 +111,11 @@ export const translations: Record<Language, Record<string, string>> = {
     'flow.adjustFilters': 'Try adjusting filters',
     'flow.currentPosition': 'Current position',
     'flow.needLogin': '(Login required)',
+    'flow.netFlowOverview': 'Net Flow by Time',
+    'flow.netFlow': 'Net Flow',
+    'flow.volume': 'Volume',
+    'flow.traders': 'traders',
+    'flow.allPeriods': 'All Time Periods',
 
     // Trade Actions
     'action.openLong': 'Open Long',
@@ -315,6 +320,11 @@ export const translations: Record<Language, Record<string, string>> = {
     'flow.adjustFilters': '尝试调整筛选条件',
     'flow.currentPosition': '当前仓位',
     'flow.needLogin': '(需登录)',
+    'flow.netFlowOverview': '时间维度净流向',
+    'flow.netFlow': '净流向',
+    'flow.volume': '成交量',
+    'flow.traders': '个交易者',
+    'flow.allPeriods': '各时间段概览',
 
     // Trade Actions
     'action.openLong': '开多',
@@ -519,6 +529,11 @@ export const translations: Record<Language, Record<string, string>> = {
     'flow.adjustFilters': 'フィルターを調整してください',
     'flow.currentPosition': '現在のポジション',
     'flow.needLogin': '(ログイン必要)',
+    'flow.netFlowOverview': '時間別ネットフロー',
+    'flow.netFlow': 'ネットフロー',
+    'flow.volume': '出来高',
+    'flow.traders': 'トレーダー',
+    'flow.allPeriods': '全期間概要',
 
     // Trade Actions
     'action.openLong': 'ロング開始',
@@ -723,6 +738,11 @@ export const translations: Record<Language, Record<string, string>> = {
     'flow.adjustFilters': '필터를 조정해 보세요',
     'flow.currentPosition': '현재 포지션',
     'flow.needLogin': '(로그인 필요)',
+    'flow.netFlowOverview': '시간대별 순유입',
+    'flow.netFlow': '순유입',
+    'flow.volume': '거래량',
+    'flow.traders': '트레이더',
+    'flow.allPeriods': '전체 기간 개요',
 
     // Trade Actions
     'action.openLong': '롱 오픈',
@@ -927,6 +947,11 @@ export const translations: Record<Language, Record<string, string>> = {
     'flow.adjustFilters': 'Попробуйте изменить фильтры',
     'flow.currentPosition': 'Текущая позиция',
     'flow.needLogin': '(Требуется вход)',
+    'flow.netFlowOverview': 'Чистый поток по времени',
+    'flow.netFlow': 'Чистый поток',
+    'flow.volume': 'Объём',
+    'flow.traders': 'трейдеров',
+    'flow.allPeriods': 'Все периоды',
 
     // Trade Actions
     'action.openLong': 'Открыть лонг',
