@@ -78,7 +78,7 @@ export function TradesTable({ trades }: TradesTableProps) {
         </thead>
         <tbody>
           {trades.map((trade, index) => {
-            const isBuy = trade.side === 'buy';
+            const isLong = trade.side === 'long';
             const isOpen = trade.type === 'open';
             
             return (
@@ -120,12 +120,12 @@ export function TradesTable({ trades }: TradesTableProps) {
                 <td className="px-5 py-4 text-right">
                   <span className={`
                     text-xs font-medium
-                    ${isBuy 
+                    ${isLong 
                       ? 'text-[var(--color-accent-primary)]' 
                       : 'text-[var(--color-accent-negative)]'
                     }
                   `}>
-                    {isBuy ? 'LONG' : 'SHORT'}
+                    {isLong ? 'LONG' : 'SHORT'}
                   </span>
                 </td>
 
