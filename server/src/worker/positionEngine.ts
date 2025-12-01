@@ -101,21 +101,23 @@ export const eventEmitter = new EventEmitter();
 // ===== Event Aggregation =====
 // 聚合缓冲区：address:symbol:side -> pending event
 const aggregationBuffer = new Map<string, TokenFlowEvent>();
-// 聚合时间窗口（毫秒）
-const AGGREGATION_WINDOW_MS = 2000;
+// 聚合时间窗口（毫秒）- 3秒防抖，等待同一批交易的所有 fill
+const AGGREGATION_WINDOW_MS = 3000;
 // 聚合定时器
 let aggregationTimer: NodeJS.Timeout | null = null;
 
 // ===== Telegram Deduplication =====
 // 已发送通知的去重缓存（event key -> timestamp）
 const sentNotifications = new Map<string, number>();
-// 去重缓存过期时间（5秒）
-const DEDUP_EXPIRY_MS = 5000;
+// 去重窗口（10秒内同一 trader + symbol 只发一条通知）
+const DEDUP_WINDOW_MS = 10000;
+// 去重缓存过期时间（30秒）
+const DEDUP_EXPIRY_MS = 30000;
 
 function getNotificationKey(event: TokenFlowEvent): string {
-  // 使用 address + symbol + timestamp（精确到秒）作为去重 key
-  const tsSeconds = Math.floor(event.timestamp / 1000);
-  return `${event.address}:${event.symbol}:${tsSeconds}`;
+  // 使用 address + symbol 作为去重 key（不包含时间戳）
+  // 在 DEDUP_WINDOW_MS 内同一 trader + symbol 只发一条通知
+  return `${event.address.toLowerCase()}:${event.symbol}`;
 }
 
 function shouldSendNotification(event: TokenFlowEvent): boolean {
@@ -129,9 +131,10 @@ function shouldSendNotification(event: TokenFlowEvent): boolean {
     }
   }
   
-  // 检查是否已发送过
-  if (sentNotifications.has(key)) {
-    console.log(`⚠️ Skipping duplicate notification for ${key}`);
+  // 检查是否在去重窗口内已发送过
+  const lastSentTime = sentNotifications.get(key);
+  if (lastSentTime && (now - lastSentTime) < DEDUP_WINDOW_MS) {
+    console.log(`⚠️ Skipping duplicate notification for ${key} (sent ${now - lastSentTime}ms ago)`);
     return false;
   }
   
