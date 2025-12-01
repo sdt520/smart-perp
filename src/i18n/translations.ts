@@ -116,6 +116,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'flow.volume': 'Volume',
     'flow.traders': 'traders',
     'flow.allPeriods': 'All Time Periods',
+    'flow.botsFiltered': 'High-frequency bots excluded',
 
     // Trade Actions
     'action.openLong': 'Open Long',
@@ -325,6 +326,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'flow.volume': '成交量',
     'flow.traders': '个交易者',
     'flow.allPeriods': '各时间段概览',
+    'flow.botsFiltered': '已过滤高频机器人',
 
     // Trade Actions
     'action.openLong': '开多',
@@ -534,6 +536,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'flow.volume': '出来高',
     'flow.traders': 'トレーダー',
     'flow.allPeriods': '全期間概要',
+    'flow.botsFiltered': '高頻度ボット除外',
 
     // Trade Actions
     'action.openLong': 'ロング開始',
@@ -743,6 +746,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'flow.volume': '거래량',
     'flow.traders': '트레이더',
     'flow.allPeriods': '전체 기간 개요',
+    'flow.botsFiltered': '고빈도 봇 제외',
 
     // Trade Actions
     'action.openLong': '롱 오픈',
@@ -952,6 +956,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'flow.volume': 'Объём',
     'flow.traders': 'трейдеров',
     'flow.allPeriods': 'Все периоды',
+    'flow.botsFiltered': 'Высокочастотные боты исключены',
 
     // Trade Actions
     'action.openLong': 'Открыть лонг',

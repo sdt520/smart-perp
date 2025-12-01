@@ -716,9 +716,14 @@ export function TokenFlow() {
                   onChange={() => setAddressSource('top500')}
                   className="w-4 h-4 accent-[var(--color-accent-primary)]"
                 />
-                <span className={`text-sm ${addressSource === 'top500' ? 'text-[var(--color-text-primary)]' : 'text-[var(--color-text-muted)]'} group-hover:text-[var(--color-text-primary)] transition-colors`}>
-                  {t('flow.topSmartMoney')}
-                </span>
+                <div className="flex flex-col">
+                  <span className={`text-sm ${addressSource === 'top500' ? 'text-[var(--color-text-primary)]' : 'text-[var(--color-text-muted)]'} group-hover:text-[var(--color-text-primary)] transition-colors`}>
+                    {t('flow.topSmartMoney')}
+                  </span>
+                  <span className="text-[10px] text-[var(--color-text-muted)]">
+                    {t('flow.botsFiltered')}
+                  </span>
+                </div>
               </label>
               <label className={`flex items-center gap-3 ${isAuthenticated ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'} group`}>
                 <input

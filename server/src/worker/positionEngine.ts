@@ -43,6 +43,7 @@ interface SmartTraderMeta {
   rank: number;
   pnl30d: number;
   winRate30d: number;
+  isBot: boolean;
 }
 
 type ActionType = 
@@ -163,7 +164,8 @@ export async function loadSmartSet(topN: number = 500): Promise<void> {
       w.address,
       ROW_NUMBER() OVER (ORDER BY m.pnl_30d DESC NULLS LAST) as rank,
       COALESCE(m.pnl_30d, 0)::float as pnl_30d,
-      COALESCE(m.win_rate_30d, 0)::float as win_rate_30d
+      COALESCE(m.win_rate_30d, 0)::float as win_rate_30d,
+      COALESCE(m.trades_count_7d, 0) > 7 * 300 as is_bot
     FROM wallets w
     JOIN wallet_metrics m ON w.id = m.wallet_id
     WHERE w.is_active = true AND w.platform_id = 'hyperliquid'
@@ -172,16 +174,20 @@ export async function loadSmartSet(topN: number = 500): Promise<void> {
   `, [topN]);
   
   smartSet.clear();
+  let botCount = 0;
   for (const row of result.rows) {
+    const isBot = row.is_bot === true;
+    if (isBot) botCount++;
     smartSet.set(row.address.toLowerCase(), {
       walletId: row.wallet_id,
       rank: parseInt(row.rank),
       pnl30d: row.pnl_30d,
       winRate30d: row.win_rate_30d,
+      isBot,
     });
   }
   
-  console.log(`✅ Loaded ${smartSet.size} smart traders`);
+  console.log(`✅ Loaded ${smartSet.size} smart traders (${botCount} bots filtered from events)`);
 }
 
 /**
@@ -426,9 +432,12 @@ function handleTrade(trade: WsTrade): void {
   const size = parseFloat(sz);
   const [buyer, seller] = users;
   
-  // 只关心 smart money
-  const buyerIsSmart = smartSet.has(buyer.toLowerCase());
-  const sellerIsSmart = smartSet.has(seller.toLowerCase());
+  // 只关心 smart money，并过滤掉高频交易机器人
+  const buyerMeta = smartSet.get(buyer.toLowerCase());
+  const sellerMeta = smartSet.get(seller.toLowerCase());
+  
+  const buyerIsSmart = buyerMeta && !buyerMeta.isBot;
+  const sellerIsSmart = sellerMeta && !sellerMeta.isBot;
   
   if (!buyerIsSmart && !sellerIsSmart) return;
   
