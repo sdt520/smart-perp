@@ -390,7 +390,7 @@ export interface Position {
 
 export interface Trade {
   coin: string;
-  side: 'buy' | 'sell';
+  side: 'long' | 'short';
   type: 'open' | 'close';
   size: number;
   price: number;
@@ -690,26 +690,87 @@ export async function fetchTraderTrades(address: string, limit = 100): Promise<T
     const { getUserFills } = await import('./hyperliquid');
     const fills = await getUserFills(address);
     
-    // Transform fills to our Trade type
-    const trades: Trade[] = fills.slice(0, limit).map(fill => {
+    // Aggregate fills within 2 seconds for the same coin and side
+    const AGGREGATION_WINDOW_MS = 2000;
+    
+    interface AggregatedFill {
+      coin: string;
+      side: string;
+      totalSize: number;
+      totalValue: number; // size * price for weighted average
+      totalPnl: number;
+      minTime: number;
+      maxTime: number;
+      fillCount: number;
+    }
+    
+    const aggregatedMap = new Map<string, AggregatedFill>();
+    
+    // Sort fills by time first
+    const sortedFills = [...fills].sort((a, b) => a.time - b.time);
+    
+    for (const fill of sortedFills) {
       const size = parseFloat(fill.sz);
       const price = parseFloat(fill.px);
       const closedPnl = parseFloat(fill.closedPnl || '0');
-      
-      // Determine if this is opening or closing based on closedPnl
       const isClose = closedPnl !== 0;
+      const fillType = isClose ? 'close' : 'open';
       
-      return {
-        coin: fill.coin,
-        side: fill.side === 'B' ? 'buy' : 'sell',
-        type: isClose ? 'close' : 'open',
-        size,
-        price,
-        leverage: undefined, // Hyperliquid API doesn't provide leverage per trade
-        realizedPnl: isClose ? closedPnl : undefined,
-        timestamp: new Date(fill.time).toISOString(),
-      };
-    });
+      // Create a key based on coin, side, and type
+      const baseKey = `${fill.coin}:${fill.side}:${fillType}`;
+      
+      // Find if there's an existing aggregation within the time window
+      let foundKey: string | null = null;
+      for (const [key, agg] of aggregatedMap) {
+        if (key.startsWith(baseKey) && fill.time - agg.maxTime <= AGGREGATION_WINDOW_MS) {
+          foundKey = key;
+          break;
+        }
+      }
+      
+      if (foundKey) {
+        // Add to existing aggregation
+        const agg = aggregatedMap.get(foundKey)!;
+        agg.totalSize += size;
+        agg.totalValue += size * price;
+        agg.totalPnl += closedPnl;
+        agg.maxTime = Math.max(agg.maxTime, fill.time);
+        agg.fillCount++;
+      } else {
+        // Create new aggregation with unique key
+        const uniqueKey = `${baseKey}:${fill.time}`;
+        aggregatedMap.set(uniqueKey, {
+          coin: fill.coin,
+          side: fill.side,
+          totalSize: size,
+          totalValue: size * price,
+          totalPnl: closedPnl,
+          minTime: fill.time,
+          maxTime: fill.time,
+          fillCount: 1,
+        });
+      }
+    }
+    
+    // Convert aggregated map to trades
+    const trades: Trade[] = Array.from(aggregatedMap.values())
+      .sort((a, b) => b.maxTime - a.maxTime) // Sort by time descending (newest first)
+      .slice(0, limit)
+      .map(agg => {
+        const avgPrice = agg.totalValue / agg.totalSize;
+        const isClose = agg.totalPnl !== 0;
+        
+        return {
+          coin: agg.coin,
+          side: agg.side === 'B' ? 'long' : 'short',
+          type: isClose ? 'close' : 'open',
+          size: agg.totalSize,
+          price: avgPrice,
+          leverage: undefined,
+          realizedPnl: isClose ? agg.totalPnl : undefined,
+          timestamp: new Date(agg.maxTime).toISOString(),
+        };
+      });
     
     return trades;
   } catch (err) {
