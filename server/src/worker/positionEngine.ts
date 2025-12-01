@@ -99,6 +99,30 @@ const priceMap = new Map<string, number>();
 // 事件发射器
 export const eventEmitter = new EventEmitter();
 
+// ===== Trade Message Deduplication =====
+// 已处理的 trade id 缓存（避免重复处理同一笔交易）
+const processedTradeIds = new Set<number>();
+const MAX_PROCESSED_TRADE_IDS = 10000; // 最多保留 10000 个 id
+
+function isTradeProcessed(tid: number): boolean {
+  if (processedTradeIds.has(tid)) {
+    return true;
+  }
+  
+  // 如果缓存太大，清理一半
+  if (processedTradeIds.size >= MAX_PROCESSED_TRADE_IDS) {
+    const idsArray = Array.from(processedTradeIds);
+    const halfIndex = Math.floor(idsArray.length / 2);
+    processedTradeIds.clear();
+    for (let i = halfIndex; i < idsArray.length; i++) {
+      processedTradeIds.add(idsArray[i]);
+    }
+  }
+  
+  processedTradeIds.add(tid);
+  return false;
+}
+
 // ===== Event Aggregation =====
 // 聚合缓冲区：address:symbol:side -> pending event
 const aggregationBuffer = new Map<string, TokenFlowEvent>();
@@ -427,7 +451,13 @@ function flushAggregationBuffer(): void {
  * 处理一笔交易
  */
 function handleTrade(trade: WsTrade): void {
-  const { coin, side, px, sz, time, users } = trade;
+  const { coin, side, px, sz, time, tid, users } = trade;
+  
+  // 检查是否已处理过这笔交易（避免重复）
+  if (isTradeProcessed(tid)) {
+    return;
+  }
+  
   const price = parseFloat(px);
   const size = parseFloat(sz);
   const [buyer, seller] = users;
