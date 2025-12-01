@@ -189,15 +189,6 @@ function FilterSelect({
 
 // Time Frame Net Flow Component
 const TIME_PERIODS = ['5m', '30m', '1h', '4h', '8h', '12h', '24h'] as const;
-const PERIOD_LABELS: Record<string, string> = {
-  '5m': '5分钟',
-  '30m': '30分钟',
-  '1h': '1小时',
-  '4h': '4小时',
-  '8h': '8小时',
-  '12h': '12小时',
-  '24h': '24小时',
-};
 
 function TimeFrameNetFlow({ 
   netFlowData, 
