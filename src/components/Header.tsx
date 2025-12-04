@@ -79,6 +79,19 @@ export function Header() {
             >
               {t('header.telegramNotify')}
             </Link>
+            <Link
+              to="/dump-radar"
+              className={`px-3 py-1.5 rounded-lg text-sm transition-all flex items-center gap-1 ${
+                isActive('/dump-radar') 
+                  ? 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] font-medium' 
+                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)]/50'
+              }`}
+            >
+              {t('header.dumpRadar')}
+              <span className="text-[8px] px-1 py-0.5 rounded bg-[var(--color-accent-negative)]/20 text-[var(--color-accent-negative)]">
+                NEW
+              </span>
+            </Link>
             <div className="w-px h-4 bg-[var(--color-border)] mx-2"></div>
             {platforms.map((platform) => (
               <button

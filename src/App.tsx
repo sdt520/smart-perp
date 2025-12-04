@@ -4,6 +4,7 @@ import { Home } from './pages/Home';
 import { TraderDetail } from './pages/TraderDetail';
 import { Favorites } from './pages/Favorites';
 import { TokenFlow } from './pages/TokenFlow';
+import { DumpRadar } from './pages/DumpRadar';
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Route path="trader/:address" element={<TraderDetail />} />
         <Route path="favorites" element={<Favorites />} />
         <Route path="flow" element={<TokenFlow />} />
+        <Route path="dump-radar" element={<DumpRadar />} />
       </Route>
     </Routes>
   );

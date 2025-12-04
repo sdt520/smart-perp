@@ -14,8 +14,9 @@ import type { Server } from 'http';
 import db from '../db/index.js';
 
 interface ClientSubscription {
-  channel: 'flow';
+  channel: 'flow' | 'dump-radar';
   coin?: string; // 如果为 undefined，订阅全部币种
+  tokenId?: number; // 用于 dump-radar 订阅特定代币
 }
 
 interface WsClient {
@@ -104,7 +105,7 @@ export function setupWebSocket(server: Server): WebSocketServer {
 }
 
 function handleClientMessage(client: WsClient, msg: any): void {
-  const { type, channel, coin } = msg;
+  const { type, channel, coin, tokenId } = msg;
   
   switch (type) {
     case 'subscribe':
@@ -122,6 +123,20 @@ function handleClientMessage(client: WsClient, msg: any): void {
           }));
           console.log(`📡 Client subscribed to flow:${coin || 'all'}`);
         }
+      } else if (channel === 'dump-radar') {
+        // Dump Radar 订阅
+        const existing = client.subscriptions.find(
+          s => s.channel === 'dump-radar' && s.tokenId === tokenId
+        );
+        if (!existing) {
+          client.subscriptions.push({ channel: 'dump-radar', tokenId });
+          client.ws.send(JSON.stringify({
+            type: 'subscribed',
+            channel: 'dump-radar',
+            tokenId: tokenId || 'all',
+          }));
+          console.log(`📡 Client subscribed to dump-radar:${tokenId || 'all'}`);
+        }
       }
       break;
       
@@ -134,6 +149,15 @@ function handleClientMessage(client: WsClient, msg: any): void {
           type: 'unsubscribed',
           channel: 'flow',
           coin: coin || 'all',
+        }));
+      } else if (channel === 'dump-radar') {
+        client.subscriptions = client.subscriptions.filter(
+          s => !(s.channel === 'dump-radar' && s.tokenId === tokenId)
+        );
+        client.ws.send(JSON.stringify({
+          type: 'unsubscribed',
+          channel: 'dump-radar',
+          tokenId: tokenId || 'all',
         }));
       }
       break;
@@ -206,5 +230,66 @@ async function setupEventListener(): Promise<void> {
  */
 export function getClientCount(): number {
   return clients.size;
+}
+
+/**
+ * 广播 Dump Radar 事件到订阅的客户端
+ */
+export function broadcastDumpRadarEvent(event: {
+  id: number;
+  token_id: number;
+  network_id: string;
+  tx_hash: string;
+  from_address: string;
+  to_address: string;
+  to_binance_label: string | null;
+  amount_formatted: number | null;
+  amount_usd: number | null;
+  from_label: string | null;
+  from_tag: string | null;
+  tx_timestamp: Date;
+  token_symbol?: string;
+  network_name?: string;
+  explorer_url?: string;
+}): void {
+  const message = JSON.stringify({
+    type: 'dump-radar',
+    data: {
+      id: event.id,
+      tokenId: event.token_id,
+      networkId: event.network_id,
+      txHash: event.tx_hash,
+      fromAddress: event.from_address,
+      toAddress: event.to_address,
+      toBinanceLabel: event.to_binance_label,
+      amountFormatted: event.amount_formatted,
+      amountUsd: event.amount_usd,
+      fromLabel: event.from_label,
+      fromTag: event.from_tag,
+      timestamp: event.tx_timestamp,
+      tokenSymbol: event.token_symbol,
+      networkName: event.network_name,
+      explorerUrl: event.explorer_url,
+    },
+  });
+
+  let sentCount = 0;
+  clients.forEach(client => {
+    if (client.ws.readyState !== WebSocket.OPEN) return;
+
+    // 检查是否订阅了 dump-radar
+    const isSubscribed = client.subscriptions.some(
+      s => s.channel === 'dump-radar' && (!s.tokenId || s.tokenId === event.token_id)
+    );
+
+    if (isSubscribed) {
+      client.ws.send(message);
+      sentCount++;
+    }
+  });
+
+  if (sentCount > 0) {
+    console.log(`📤 Broadcasted dump-radar event to ${sentCount} clients`);
+  }
 }
 
