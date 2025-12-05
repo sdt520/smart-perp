@@ -832,7 +832,6 @@ function TelegramNotificationCard({
 // Main Component
 export function DumpRadar() {
   const { t } = useLanguage();
-  const { isAuthenticated } = useAuth();
   
   // Data states
   const [networks, setNetworks] = useState<BlockchainNetwork[]>([]);
