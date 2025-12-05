@@ -36,3 +36,4 @@ EXPOSE 3001
 # Start API with hot reload
 CMD ["npm", "run", "dev"]
 
+

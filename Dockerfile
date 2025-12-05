@@ -56,3 +56,4 @@ EXPOSE 3001
 # Default command (can be overridden)
 CMD ["node", "server/dist/index.js"]
 
+

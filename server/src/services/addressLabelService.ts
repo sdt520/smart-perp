@@ -46,6 +46,15 @@ const KNOWN_ADDRESSES: Record<string, Record<string, { label: string; tag: Addre
   arb: {
     '0xb38e8c17e38363af6ebdcb3dae12e0243582891d': { label: 'Binance Arbitrum', tag: 'exchange' },
   },
+  sol: {
+    // Solana Binance 地址
+    '5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9': { label: 'Binance Hot Wallet 1', tag: 'exchange' },
+    '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM': { label: 'Binance Hot Wallet 2', tag: 'exchange' },
+    '2ojv9BAiHUrvsm9gxDe7fJSzbNZSJcxZvf8dqmWGHG8S': { label: 'Binance Hot Wallet 3', tag: 'exchange' },
+    // Solana 知名地址
+    'FWznbcNXWQuHTawe9RxvQ2LdCENssh12dsznf4RiouN5': { label: 'Jump Trading', tag: 'fund' },
+    'H69SYLkCNaVWp2f5yWB1zMaLxJ4Cz7ZE8P5xH1FmYqfH': { label: 'Alameda Research', tag: 'fund' },
+  },
 };
 
 // 从本地数据获取地址标签

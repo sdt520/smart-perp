@@ -84,3 +84,4 @@ echo "   sudo certbot certonly --standalone -d your-domain.com"
 echo "   cp /etc/letsencrypt/live/your-domain.com/fullchain.pem nginx/ssl/"
 echo "   cp /etc/letsencrypt/live/your-domain.com/privkey.pem nginx/ssl/"
 
+

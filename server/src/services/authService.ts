@@ -149,3 +149,4 @@ export async function getUserById(userId: number): Promise<User | null> {
   return result.rows[0] || null;
 }
 
+
