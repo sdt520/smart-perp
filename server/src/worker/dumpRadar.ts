@@ -38,28 +38,28 @@ const NETWORK_CONFIGS: NetworkConfig[] = [
   {
     id: 'eth',
     name: 'Ethereum',
-    rpcUrl: process.env.ETH_RPC_URL || 'https://eth.llamarpc.com',
+    rpcUrl: process.env.ETH_RPC_URL || 'https://ethereum-rpc.publicnode.com',
     chainId: 1,
     blockTime: 12,
   },
   {
     id: 'bsc',
     name: 'BNB Chain',
-    rpcUrl: process.env.BSC_RPC_URL || 'https://bsc-dataseed.binance.org',
+    rpcUrl: process.env.BSC_RPC_URL || 'https://bsc-rpc.publicnode.com',
     chainId: 56,
     blockTime: 3,
   },
   {
     id: 'arb',
     name: 'Arbitrum',
-    rpcUrl: process.env.ARB_RPC_URL || 'https://arb1.arbitrum.io/rpc',
+    rpcUrl: process.env.ARB_RPC_URL || 'https://arbitrum-one-rpc.publicnode.com',
     chainId: 42161,
     blockTime: 0.25,
   },
   {
     id: 'base',
     name: 'Base',
-    rpcUrl: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
+    rpcUrl: process.env.BASE_RPC_URL || 'https://base-rpc.publicnode.com',
     chainId: 8453,
     blockTime: 2,
   },
@@ -86,9 +86,10 @@ const state: WorkerState = {
 function initProviders(): void {
   for (const config of NETWORK_CONFIGS) {
     try {
-      const provider = new ethers.JsonRpcProvider(config.rpcUrl, {
-        chainId: config.chainId,
-        name: config.name,
+      // 使用 staticNetwork 跳过网络检测，避免 RPC 连接问题
+      const network = new ethers.Network(config.name, config.chainId);
+      const provider = new ethers.JsonRpcProvider(config.rpcUrl, network, {
+        staticNetwork: network,
       });
       state.providers.set(config.id, provider);
       console.log(`✅ Provider initialized for ${config.name}`);
@@ -142,8 +143,21 @@ async function loadMonitoredTokens(): Promise<void> {
   );
 }
 
-// 检查是否是 Binance 地址（先查缓存，再动态检测）
-async function checkBinanceAddress(networkId: string, address: string): Promise<{
+// 检查是否是 Binance 地址（只查本地缓存，不调用 API）
+function checkBinanceAddressLocal(networkId: string, address: string): {
+  isBinance: boolean;
+  label: string | null;
+} {
+  const addresses = state.binanceAddresses.get(networkId);
+  if (addresses?.has(address.toLowerCase())) {
+    // 同步返回，标签稍后异步获取
+    return { isBinance: true, label: null };
+  }
+  return { isBinance: false, label: null };
+}
+
+// 检查是否是 Binance 地址（包括 API 检测，用于大额交易）
+async function checkBinanceAddress(networkId: string, address: string, useApi: boolean = false): Promise<{
   isBinance: boolean;
   label: string | null;
 }> {
@@ -154,7 +168,12 @@ async function checkBinanceAddress(networkId: string, address: string): Promise<
     return { isBinance: true, label };
   }
 
-  // 2. 动态检测（查 Arkham 等第三方 API）
+  // 2. 如果不需要调用 API，直接返回
+  if (!useApi) {
+    return { isBinance: false, label: null };
+  }
+
+  // 3. 动态检测（查 Moralis/Arkham 等第三方 API）
   const detection = await binanceDetector.detectBinanceAddress(networkId, address);
   
   if (detection.isBinance) {
@@ -217,12 +236,12 @@ async function processTransferEvent(
   try {
     const contractAddress = log.address.toLowerCase();
     
-    // 检查是否是我们监控的代币
+    // 1. 检查是否是我们监控的代币
     if (!state.monitoredTokens.get(networkId)?.has(contractAddress)) {
       return;
     }
 
-    // 解析事件数据
+    // 2. 解析事件数据
     const iface = new ethers.Interface(ERC20_ABI);
     const parsed = iface.parseLog({ topics: log.topics as string[], data: log.data });
     
@@ -232,28 +251,48 @@ async function processTransferEvent(
     const to = parsed.args[1].toLowerCase();
     const value = parsed.args[2] as bigint;
 
-    // 检查 to 地址是否是 Binance（支持动态检测）
-    const binanceCheck = await checkBinanceAddress(networkId, to);
-    if (!binanceCheck.isBinance) {
-      return;
-    }
-    
-    // 注意：如果 from 也是 Binance 地址（内部归集），可以选择跳过
-    // 这里我们保留，因为归集也意味着资金进入了可提币状态
-    const fromIsBinance = await checkBinanceAddress(networkId, from);
-    const isInternalTransfer = fromIsBinance.isBinance;
-
-    // 获取代币信息
+    // 3. 获取代币信息和价格
     const tokenInfo = await getTokenInfo(networkId, contractAddress);
     if (!tokenInfo) return;
 
-    // 计算金额
+    // 4. 计算金额，先过滤小额转账
     const amountFormatted = parseFloat(ethers.formatUnits(value, tokenInfo.decimals));
     const amountUsd = tokenInfo.priceUsd ? amountFormatted * tokenInfo.priceUsd : null;
 
-    // 检查是否达到最小阈值（默认 10 万美金）
-    const minThreshold = parseFloat(process.env.DUMP_RADAR_MIN_USD || '100000');
+    // 最小阈值检查（默认 $1M）
+    const minThreshold = parseFloat(process.env.DUMP_RADAR_MIN_USD || '1000000');
     if (!amountUsd || amountUsd < minThreshold) {
+      return; // 金额太小，直接跳过，不查询任何 API
+    }
+
+    // 5. 金额 >= $1M，先查本地 Binance 地址库
+    let binanceCheck = checkBinanceAddressLocal(networkId, to);
+    
+    // 6. 本地没有，查 Moralis API（大额转账才查，数量有限）
+    if (!binanceCheck.isBinance) {
+      console.log(`🔍 Large transfer $${amountUsd.toFixed(0)} to unknown address, checking Moralis...`);
+      const apiResult = await checkBinanceAddress(networkId, to, true); // useApi = true
+      if (apiResult.isBinance) {
+        binanceCheck = { isBinance: true, label: apiResult.label };
+        console.log(`  ✅ Confirmed Binance address via Moralis: ${apiResult.label}`);
+      } else {
+        // 不是 Binance 地址，跳过
+        return;
+      }
+    }
+    
+    // 7. 检查 from 是否也是 Binance 地址（过滤内部转账）
+    // 先查本地，如果是大额也查 API
+    let fromIsBinance = checkBinanceAddressLocal(networkId, from);
+    if (!fromIsBinance.isBinance) {
+      // 对于 from 地址，也用 API 检查（避免漏掉内部转账）
+      const fromApiResult = await checkBinanceAddress(networkId, from, true);
+      fromIsBinance = { isBinance: fromApiResult.isBinance, label: fromApiResult.label };
+    }
+    
+    if (fromIsBinance.isBinance) {
+      // from 也是 Binance 地址，这是内部转账，跳过
+      console.log(`  ⏭️ Skipping internal transfer: ${fromIsBinance.label} → Binance`);
       return;
     }
 
@@ -263,14 +302,11 @@ async function processTransferEvent(
     const block = await provider.getBlock(log.blockNumber);
     const txTimestamp = block ? new Date(block.timestamp * 1000) : new Date();
 
-    // 使用检测到的 Binance 地址标签
-    const binanceLabel = binanceCheck.label;
+    // 使用已获取的 Binance 地址标签（优先使用 API 返回的，否则查本地）
+    const binanceLabel = binanceCheck.label || await getBinanceLabel(networkId, to);
 
     // 获取发送方标签
-    // 如果是内部转账（归集），标记为 Binance 内部
-    const fromLabel = isInternalTransfer 
-      ? { label: 'Binance Internal', tag: 'exchange' as const, address: from, source: 'internal' }
-      : await addressLabelService.getAddressLabel(networkId, from, { checkWhale: true });
+    const fromLabel = await addressLabelService.getAddressLabel(networkId, from, { checkWhale: true });
 
     // 记录事件
     const event = await dumpRadarService.recordEvent({
@@ -439,6 +475,7 @@ async function startConfigReloader(): Promise<void> {
     }
   }, 10 * 60 * 1000);
 }
+
 
 // 启动 Worker
 export async function startDumpRadarWorker(): Promise<void> {

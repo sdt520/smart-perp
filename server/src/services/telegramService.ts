@@ -75,13 +75,15 @@ export async function initTelegramBinding(userId: number): Promise<{ code: strin
   const code = generateVerificationCode();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10分钟后过期
 
+  // 使用 NULL 而不是空字符串，避免 UNIQUE 约束冲突
   await db.query(
     `INSERT INTO user_telegram (user_id, telegram_chat_id, verification_code, verification_expires_at, is_verified)
-     VALUES ($1, '', $2, $3, false)
+     VALUES ($1, NULL, $2, $3, false)
      ON CONFLICT (user_id) DO UPDATE SET
        verification_code = $2,
        verification_expires_at = $3,
-       is_verified = false`,
+       is_verified = false,
+       telegram_chat_id = CASE WHEN user_telegram.is_verified THEN user_telegram.telegram_chat_id ELSE NULL END`,
     [userId, code, expiresAt]
   );
 

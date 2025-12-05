@@ -3,15 +3,21 @@
  * 
  * 策略：
  * 1. 先查本地数据库（快）
- * 2. 本地没有则查第三方 API（Arkham / Etherscan 标签）
- * 3. 如果确认是 Binance，自动添加到本地数据库
+ * 2. 检查负缓存（已确认不是 Binance 的地址）
+ * 3. 本地没有则查第三方 API（Moralis / Arkham / Etherscan 标签）
+ * 4. 如果确认是 Binance，自动添加到本地数据库
+ * 5. 如果确认不是 Binance，添加到负缓存（持久化到数据库）
  */
 
 import db from '../db/index.js';
 
-// 缓存：已确认不是 Binance 的地址（避免重复查询）
-const notBinanceCache = new Map<string, number>(); // address -> timestamp
-const NEGATIVE_CACHE_TTL = 24 * 60 * 60 * 1000; // 24小时
+// Moralis API 配置
+const MORALIS_API_KEY = process.env.MORALIS_API_KEY || '';
+const MORALIS_API_BASE = 'https://deep-index.moralis.io/api/v2.2';
+
+// 内存缓存：加速查询（数据库缓存的补充）
+const memoryCache = new Map<string, { isBinance: boolean; timestamp: number }>();
+const MEMORY_CACHE_TTL = 60 * 60 * 1000; // 1小时内存缓存
 
 // 已知 Binance 地址特征（用于启发式检测）
 const BINANCE_PATTERNS = {
@@ -39,43 +45,65 @@ export async function detectBinanceAddress(
   const normalizedAddress = address.toLowerCase();
   const cacheKey = `${networkId}:${normalizedAddress}`;
 
-  // 1. 检查负缓存
-  const notBinanceTime = notBinanceCache.get(cacheKey);
-  if (notBinanceTime && Date.now() - notBinanceTime < NEGATIVE_CACHE_TTL) {
-    return { isBinance: false, label: null, confidence: 'high', source: 'database' };
+  // 1. 检查内存缓存（最快）
+  const memoryCached = memoryCache.get(cacheKey);
+  if (memoryCached && Date.now() - memoryCached.timestamp < MEMORY_CACHE_TTL) {
+    if (!memoryCached.isBinance) {
+      return { isBinance: false, label: null, confidence: 'high', source: 'database' };
+    }
   }
 
-  // 2. 查本地数据库
+  // 2. 查本地 Binance 地址数据库
   const dbResult = await checkLocalDatabase(networkId, normalizedAddress);
   if (dbResult.isBinance) {
+    memoryCache.set(cacheKey, { isBinance: true, timestamp: Date.now() });
     return dbResult;
   }
 
-  // 3. 查 Arkham API（如果配置了）
+  // 3. 检查负缓存（已确认不是 Binance 的地址，持久化到数据库）
+  const isInNegativeCache = await checkNegativeCache(networkId, normalizedAddress);
+  if (isInNegativeCache) {
+    memoryCache.set(cacheKey, { isBinance: false, timestamp: Date.now() });
+    return { isBinance: false, label: null, confidence: 'high', source: 'database' };
+  }
+
+  // 4. 查 Moralis API（如果配置了）- 推荐，有地址标签
+  if (MORALIS_API_KEY) {
+    const moralisResult = await checkMoralisAPI(networkId, normalizedAddress);
+    if (moralisResult.isBinance) {
+      await addToLocalDatabase(networkId, normalizedAddress, moralisResult.label, 'moralis');
+      memoryCache.set(cacheKey, { isBinance: true, timestamp: Date.now() });
+      return moralisResult;
+    }
+  }
+
+  // 5. 查 Arkham API（如果配置了）
   if (process.env.ARKHAM_API_KEY) {
     const arkhamResult = await checkArkhamAPI(normalizedAddress);
     if (arkhamResult.isBinance) {
-      // 自动添加到本地数据库
       await addToLocalDatabase(networkId, normalizedAddress, arkhamResult.label, 'arkham');
+      memoryCache.set(cacheKey, { isBinance: true, timestamp: Date.now() });
       return arkhamResult;
     }
   }
 
-  // 4. 查 Etherscan 标签 API（免费但有限制）
+  // 6. 查 Etherscan 标签 API（免费但有限制）
   const etherscanResult = await checkEtherscanLabels(networkId, normalizedAddress);
   if (etherscanResult.isBinance) {
     await addToLocalDatabase(networkId, normalizedAddress, etherscanResult.label, 'etherscan');
+    memoryCache.set(cacheKey, { isBinance: true, timestamp: Date.now() });
     return etherscanResult;
   }
 
-  // 5. 启发式检测（最后手段，可信度低）
+  // 7. 启发式检测（最后手段，可信度低）
   const heuristicResult = heuristicCheck(normalizedAddress);
   if (heuristicResult.isBinance) {
     return heuristicResult;
   }
 
-  // 确认不是 Binance，加入负缓存
-  notBinanceCache.set(cacheKey, Date.now());
+  // 确认不是 Binance，加入负缓存（持久化到数据库）
+  await addToNegativeCache(networkId, normalizedAddress, 'moralis');
+  memoryCache.set(cacheKey, { isBinance: false, timestamp: Date.now() });
   return { isBinance: false, label: null, confidence: 'high', source: 'database' };
 }
 
@@ -99,6 +127,148 @@ async function checkLocalDatabase(networkId: string, address: string): Promise<D
   }
 
   return { isBinance: false, label: null, confidence: 'high', source: 'database' };
+}
+
+/**
+ * 检查负缓存（已确认不是 Binance 的地址）
+ */
+async function checkNegativeCache(networkId: string, address: string): Promise<boolean> {
+  try {
+    const result = await db.query<{ id: number }>(
+      `SELECT id FROM not_binance_addresses 
+       WHERE network_id = $1 AND LOWER(address) = $2 AND expires_at > NOW()`,
+      [networkId, address]
+    );
+    return result.rows.length > 0;
+  } catch (error) {
+    // 表可能不存在（迁移未执行），返回 false 继续检测
+    return false;
+  }
+}
+
+/**
+ * 添加到负缓存（持久化到数据库，默认 7 天过期）
+ */
+async function addToNegativeCache(
+  networkId: string, 
+  address: string, 
+  source: string
+): Promise<void> {
+  try {
+    await db.query(
+      `INSERT INTO not_binance_addresses (network_id, address, source, checked_at, expires_at)
+       VALUES ($1, $2, $3, NOW(), NOW() + INTERVAL '7 days')
+       ON CONFLICT (network_id, address) DO UPDATE SET
+         checked_at = NOW(),
+         expires_at = NOW() + INTERVAL '7 days'`,
+      [networkId, address.toLowerCase(), source]
+    );
+  } catch (error) {
+    // 表可能不存在，忽略错误
+    console.warn('Failed to add to negative cache:', error);
+  }
+}
+
+/**
+ * 查 Moralis API
+ * https://docs.moralis.io/web3-data-api/evm/reference/wallet-api/get-wallet-history
+ * Moralis 返回的交易数据包含 from_address_label 和 to_address_label
+ */
+async function checkMoralisAPI(networkId: string, address: string): Promise<DetectionResult> {
+  if (!MORALIS_API_KEY) {
+    return { isBinance: false, label: null, confidence: 'low', source: 'database' };
+  }
+
+  // Moralis 链 ID 映射
+  const chainMap: Record<string, string> = {
+    'eth': '0x1',
+    'bsc': '0x38',
+    'arb': '0xa4b1',
+    'base': '0x2105',
+  };
+
+  const chain = chainMap[networkId];
+  if (!chain) {
+    return { isBinance: false, label: null, confidence: 'low', source: 'database' };
+  }
+
+  try {
+    // 使用 Moralis 的 resolve address API 来获取地址标签
+    const response = await fetch(
+      `${MORALIS_API_BASE}/resolve/${address}?chain=${chain}`,
+      {
+        headers: {
+          'Accept': 'application/json',
+          'X-API-Key': MORALIS_API_KEY,
+        },
+      }
+    );
+
+    if (response.ok) {
+      const data = await response.json() as { name?: string };
+      if (data.name && data.name.toLowerCase().includes('binance')) {
+        return {
+          isBinance: true,
+          label: data.name,
+          confidence: 'high',
+          source: 'database', // 使用 database 作为通用 source
+        };
+      }
+    }
+
+    // 备选方案：查询地址的最近交易，看是否有标签
+    const txResponse = await fetch(
+      `${MORALIS_API_BASE}/${address}?chain=${chain}&limit=1`,
+      {
+        headers: {
+          'Accept': 'application/json',
+          'X-API-Key': MORALIS_API_KEY,
+        },
+      }
+    );
+
+    if (txResponse.ok) {
+      const txData = await txResponse.json() as {
+        result?: Array<{
+          from_address_label?: string;
+          to_address_label?: string;
+          from_address?: string;
+          to_address?: string;
+        }>;
+      };
+
+      if (txData.result && txData.result.length > 0) {
+        const tx = txData.result[0];
+        
+        // 检查 from_address_label
+        if (tx.from_address?.toLowerCase() === address.toLowerCase() && 
+            tx.from_address_label?.toLowerCase().includes('binance')) {
+          return {
+            isBinance: true,
+            label: tx.from_address_label,
+            confidence: 'high',
+            source: 'database',
+          };
+        }
+        
+        // 检查 to_address_label
+        if (tx.to_address?.toLowerCase() === address.toLowerCase() && 
+            tx.to_address_label?.toLowerCase().includes('binance')) {
+          return {
+            isBinance: true,
+            label: tx.to_address_label,
+            confidence: 'high',
+            source: 'database',
+          };
+        }
+      }
+    }
+
+    return { isBinance: false, label: null, confidence: 'medium', source: 'database' };
+  } catch (error) {
+    console.error('Moralis API error:', error);
+    return { isBinance: false, label: null, confidence: 'low', source: 'database' };
+  }
 }
 
 /**

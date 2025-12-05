@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
-const API_BASE = import.meta.env.VITE_API_BASE || '/api';
+const API_BASE = import.meta.env.VITE_API_BASE || 
+  (import.meta.env.PROD ? '/api' : 'http://localhost:3001/api');
 
 // Telegram Types
 interface TelegramStatus {
@@ -474,12 +475,19 @@ function TelegramNotificationCard({
   const [botUsername, setBotUsername] = useState('smart_perp_bot');
   const [saving, setSaving] = useState(false);
 
+  const [statusLoading, setStatusLoading] = useState(true);
+
   // 获取 Telegram 状态
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      setStatusLoading(false);
+      return;
+    }
     
     async function fetchStatus() {
+      setStatusLoading(true);
       try {
+        console.log('Fetching telegram status...');
         const [statusRes, settingsRes] = await Promise.all([
           fetch(`${API_BASE}/telegram/status`, { headers: getAuthHeaders() }),
           fetch(`${API_BASE}/dump-radar/notification-settings`, { headers: getAuthHeaders() }),
@@ -488,10 +496,15 @@ function TelegramNotificationCard({
         const statusData = await statusRes.json();
         const settingsData = await settingsRes.json();
         
+        console.log('Telegram status:', statusData);
+        console.log('Notification settings:', settingsData);
+        
         if (statusData.success) setTelegramStatus(statusData.data);
         if (settingsData.success) setNotificationSettings(settingsData.data);
       } catch (err) {
         console.error('Failed to fetch telegram status:', err);
+      } finally {
+        setStatusLoading(false);
       }
     }
     
@@ -501,18 +514,23 @@ function TelegramNotificationCard({
   // 开始绑定 Telegram
   const handleBindTelegram = async () => {
     try {
+      console.log('Starting Telegram bind...');
       const res = await fetch(`${API_BASE}/telegram/bind`, {
         method: 'POST',
         headers: getAuthHeaders(),
       });
       const data = await res.json();
+      console.log('Telegram bind response:', data);
       if (data.success) {
         setBindCode(data.data.code);
         setBotUsername(data.data.botUsername);
         setShowBindModal(true);
+      } else {
+        alert(`绑定失败: ${data.error || '未知错误'}`);
       }
     } catch (err) {
       console.error('Failed to init telegram binding:', err);
+      alert('网络错误，请稍后重试');
     }
   };
 
@@ -611,6 +629,27 @@ function TelegramNotificationCard({
         <p className="text-xs text-[var(--color-text-muted)]">
           {t('dumpRadar.loginToNotify')}
         </p>
+        <a 
+          href="/login" 
+          className="mt-3 inline-block px-4 py-2 bg-[var(--color-accent-blue)] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+        >
+          {t('auth.login')}
+        </a>
+      </div>
+    );
+  }
+
+  // 加载中
+  if (statusLoading) {
+    return (
+      <div className="glass-card rounded-xl p-4">
+        <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-3">
+          {t('dumpRadar.notifications')}
+        </h3>
+        <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+          <div className="w-4 h-4 border-2 border-[var(--color-accent-blue)] border-t-transparent rounded-full animate-spin"></div>
+          Loading...
+        </div>
       </div>
     );
   }
@@ -633,7 +672,7 @@ function TelegramNotificationCard({
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.66-.52.36-1.0.53-1.42.52-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.25.38-.51 1.07-.78 4.19-1.82 6.98-3.03 8.38-3.61 3.99-1.66 4.82-1.95 5.36-1.96.12 0 .37.03.54.17.14.12.18.28.2.45-.01.07-.01.13-.02.2z"/>
             </svg>
-            {t('telegram.bind')}
+            {t('favorites.bindTelegram')}
           </button>
         </div>
 

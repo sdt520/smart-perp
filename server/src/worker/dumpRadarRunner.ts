@@ -83,7 +83,7 @@ async function main() {
         await stopDumpRadarWorker();
       }
       if (isAll || isSolana) {
-        stopSolanaDumpRadarWorker();
+        await stopSolanaDumpRadarWorker();
       }
       process.exit(0);
     };
