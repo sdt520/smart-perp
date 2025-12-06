@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { LoginModal } from '../components/LoginModal';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 
   (import.meta.env.PROD ? '/api' : 'http://localhost:3001/api');
@@ -471,6 +472,7 @@ function TelegramNotificationCard({
   const [telegramStatus, setTelegramStatus] = useState<TelegramStatus | null>(null);
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings | null>(null);
   const [showBindModal, setShowBindModal] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [bindCode, setBindCode] = useState('');
   const [botUsername, setBotUsername] = useState('smart_perp_bot');
   const [saving, setSaving] = useState(false);
@@ -622,20 +624,26 @@ function TelegramNotificationCard({
 
   if (!isAuthenticated) {
     return (
-      <div className="glass-card rounded-xl p-4">
-        <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-3">
-          {t('dumpRadar.notifications')}
-        </h3>
-        <p className="text-xs text-[var(--color-text-muted)]">
-          {t('dumpRadar.loginToNotify')}
-        </p>
-        <a 
-          href="/login" 
-          className="mt-3 inline-block px-4 py-2 bg-[var(--color-accent-blue)] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
-        >
-          {t('auth.login')}
-        </a>
-      </div>
+      <>
+        <div className="glass-card rounded-xl p-4">
+          <h3 className="text-sm font-medium text-[var(--color-text-secondary)] mb-3">
+            {t('dumpRadar.notifications')}
+          </h3>
+          <p className="text-xs text-[var(--color-text-muted)] mb-3">
+            {t('dumpRadar.loginToNotify')}
+          </p>
+          <button 
+            onClick={() => setShowLoginModal(true)}
+            className="px-4 py-2 bg-[var(--color-accent-blue)] text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            {t('auth.login')}
+          </button>
+        </div>
+        <LoginModal 
+          isOpen={showLoginModal} 
+          onClose={() => setShowLoginModal(false)} 
+        />
+      </>
     );
   }
 
