@@ -40,7 +40,7 @@ services:
     networks:
       - smart-perp-network
 
-  # Worker (Cron Jobs)
+  # Worker (Hyperliquid Cron Jobs)
   worker:
     build:
       context: .
@@ -55,6 +55,36 @@ services:
       WORKER_TRADES_CRON: ${WORKER_TRADES_CRON:-30 0,12 * * *}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-smart_perp_bot}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - smart-perp-network
+
+  # Dump Radar Worker (EVM Chain Monitoring)
+  dump-radar-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smart-perp-dump-radar
+    restart: unless-stopped
+    command: ["node", "server/dist/worker/dumpRadarRunner.js", "--all"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${DB_USER:-smartperp}:${DB_PASSWORD:-smartperp123}@postgres:5432/${DB_NAME:-smartperp}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-smart_perp_bot}
+      # EVM RPC URLs
+      ETH_RPC_URL: ${ETH_RPC_URL:-https://ethereum-rpc.publicnode.com}
+      BSC_RPC_URL: ${BSC_RPC_URL:-https://bsc-rpc.publicnode.com}
+      ARB_RPC_URL: ${ARB_RPC_URL:-https://arbitrum-one-rpc.publicnode.com}
+      BASE_RPC_URL: ${BASE_RPC_URL:-https://base-rpc.publicnode.com}
+      SOL_RPC_URL: ${SOL_RPC_URL:-https://api.mainnet-beta.solana.com}
+      # Detection APIs
+      MORALIS_API_KEY: ${MORALIS_API_KEY:-}
+      ARKHAM_API_KEY: ${ARKHAM_API_KEY:-}
+      # Thresholds
+      DUMP_RADAR_MIN_USD: ${DUMP_RADAR_MIN_USD:-1000000}
     depends_on:
       postgres:
         condition: service_healthy
